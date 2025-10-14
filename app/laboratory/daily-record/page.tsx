@@ -89,27 +89,7 @@ export default function LaboratoryDailyRecord() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Check authentication
-  if (!isLoaded) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading Laboratory Daily Record...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    redirect("/sign-in");
-  }
-
-  const userRole = user.publicMetadata?.role as string;
-  if (userRole !== "admin" && userRole !== "laboratory") {
-    redirect("/");
-  }
-
+  // Form states
   const [editForm, setEditForm] = useState<EditTestForm>({
     testType: "",
     testName: "",
@@ -272,6 +252,27 @@ export default function LaboratoryDailyRecord() {
       setEditingTest(null);
     },
   });
+
+  // Check authentication
+  if (!isLoaded) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading Laboratory Daily Record...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    redirect("/sign-in");
+  }
+
+  const userRole = user.publicMetadata?.role as string;
+  if (userRole !== "admin" && userRole !== "laboratory") {
+    redirect("/");
+  }
 
   const handleSearch = () => {
     if (phoneNumber.trim()) {
