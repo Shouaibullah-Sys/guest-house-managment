@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Pencil, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
+import { Answer } from "@/types/types";
 
 type Props = {
   answer: Answer;

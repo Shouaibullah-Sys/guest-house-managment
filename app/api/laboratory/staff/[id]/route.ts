@@ -23,13 +23,14 @@ const updateStaffSchema = z.object({
 // GET /api/laboratory/staff/[id] - Get a specific laboratory staff member
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const staff = await db
       .select()
       .from(laboratoryStaff)
-      .where(eq(laboratoryStaff.id, parseInt(params.id)))
+      .where(eq(laboratoryStaff.id, parseInt(id)))
       .limit(1);
 
     if (staff.length === 0) {
@@ -52,9 +53,10 @@ export async function GET(
 // PUT /api/laboratory/staff/[id] - Update a specific laboratory staff member
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const validatedData = updateStaffSchema.parse(body);
 
@@ -71,7 +73,7 @@ export async function PUT(
     const updatedStaff = await db
       .update(laboratoryStaff)
       .set(updateData)
-      .where(eq(laboratoryStaff.id, parseInt(params.id)))
+      .where(eq(laboratoryStaff.id, parseInt(id)))
       .returning();
 
     if (updatedStaff.length === 0) {
@@ -101,12 +103,13 @@ export async function PUT(
 // DELETE /api/laboratory/staff/[id] - Delete a specific laboratory staff member
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const deletedStaff = await db
       .delete(laboratoryStaff)
-      .where(eq(laboratoryStaff.id, parseInt(params.id)))
+      .where(eq(laboratoryStaff.id, parseInt(id)))
       .returning();
 
     if (deletedStaff.length === 0) {

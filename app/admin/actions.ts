@@ -2,6 +2,7 @@
 import { db } from "@/db/index";
 import { questions, answers } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { Question, Answer } from "@/types/types";
 
 export const getAllQuestionsWithAnswers = async () => {
   const questionsData = await db

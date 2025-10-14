@@ -1,7 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Your Next.js configuration options go here
-  // For now, using minimal config since no special configuration is needed
+  // Disable static font optimization to prevent Google Fonts fetch errors during build
+  output: "standalone",
+  // Enable Turbopack for faster builds (updated config for Next.js 15)
+  turbopack: {
+    rules: {
+      "*.svg": {
+        loaders: ["@svgr/webpack"],
+        as: "*.js",
+      },
+    },
+  },
+  // Images configuration for better compatibility
+  images: {
+    domains: ["img.clerk.com"],
+  },
 };
 
 export default nextConfig;

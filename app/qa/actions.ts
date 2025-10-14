@@ -1,8 +1,10 @@
+//app/qa/action.ts
 "use server";
 import { db } from "@/db/index";
 import { questions, answers } from "@/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { currentUser } from "@clerk/nextjs/server";
+import { Question, Answer } from "@/types/types";
 
 // Fetches all questions, available to authenticated and anonymous users
 export async function getAllQuestions(): Promise<Question[]> {

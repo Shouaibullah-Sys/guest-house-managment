@@ -1,5 +1,5 @@
 // types/types.ts
-interface Answer {
+export interface Answer {
   id: number | null;
   ans: string;
   approved?: boolean | null;
@@ -9,7 +9,7 @@ interface Answer {
   timestamp?: string;
 }
 
-interface Question {
+export interface Question {
   id: number | null;
   quiz: string;
   approved: boolean | null;

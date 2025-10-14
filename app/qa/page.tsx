@@ -5,6 +5,7 @@ import QuestionForm from "../../components/QuestionForm";
 import QuestionItem from "@/components/QuestionItem";
 import Header from "../../components/Header";
 import * as actions from "../../app/qa/actions";
+import { Question } from "@/types/types";
 
 export default function QAPage() {
   const [questions, setQuestions] = useState<Question[]>([]);

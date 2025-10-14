@@ -21,13 +21,14 @@ const updateCommissionSchema = z.object({
 // GET /api/laboratory/doctor-commissions/[id] - Get a specific doctor commission
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const commission = await db
       .select()
       .from(doctorCommissions)
-      .where(eq(doctorCommissions.id, parseInt(params.id)))
+      .where(eq(doctorCommissions.id, parseInt(id)))
       .limit(1);
 
     if (commission.length === 0) {
@@ -50,9 +51,10 @@ export async function GET(
 // PUT /api/laboratory/doctor-commissions/[id] - Update a specific doctor commission
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const validatedData = updateCommissionSchema.parse(body);
 
@@ -69,7 +71,7 @@ export async function PUT(
     const updatedCommission = await db
       .update(doctorCommissions)
       .set(updateData)
-      .where(eq(doctorCommissions.id, parseInt(params.id)))
+      .where(eq(doctorCommissions.id, parseInt(id)))
       .returning();
 
     if (updatedCommission.length === 0) {
@@ -99,12 +101,13 @@ export async function PUT(
 // DELETE /api/laboratory/doctor-commissions/[id] - Delete a specific doctor commission
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const deletedCommission = await db
       .delete(doctorCommissions)
-      .where(eq(doctorCommissions.id, parseInt(params.id)))
+      .where(eq(doctorCommissions.id, parseInt(id)))
       .returning();
 
     if (deletedCommission.length === 0) {
