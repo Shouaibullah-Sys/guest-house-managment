@@ -265,3 +265,30 @@ export interface CreateLaboratoryStaffForm {
   effectiveTo?: string;
   isActive?: boolean;
 }
+
+export interface PatientSearchResult {
+  id: number;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  email?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  address?: string;
+}
+
+export interface PatientTestReport {
+  id: number;
+  testName: string;
+  testType: string;
+  testDate: string;
+  status: "pending" | "completed" | "cancelled";
+  results?: string;
+  reportId: string;
+  technician?: string;
+  notes?: string;
+}
+
+export interface PatientWithTests extends PatientSearchResult {
+  tests: PatientTestReport[];
+}
