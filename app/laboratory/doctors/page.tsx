@@ -31,10 +31,8 @@ import {
   Mail,
   Building,
   UserCog,
-  Search,
   Shield,
   User,
-  MapPin,
   IdCard,
   Smartphone,
 } from "lucide-react";
@@ -45,24 +43,56 @@ export default function LaboratoryDoctorsPage() {
   const { user, isLoaded } = useUser();
   const queryClient = useQueryClient();
   const [showAddDoctorForm, setShowAddDoctorForm] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
 
   // Refs for GSAP animations
   const heroRef = useRef(null);
   const formRef = useRef(null);
   const tableRef = useRef(null);
 
-  // Check for mobile viewport
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
+  // Form state for new doctor
+  const [newDoctor, setNewDoctor] = useState<CreateDoctorForm>({
+    name: "",
+    specialization: "",
+    phoneNumber: "",
+    email: "",
+    clinicName: "",
+    licenseNumber: "",
+  });
 
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
+  // Fetch all doctors
+  const { data: doctorsData, isLoading } = useQuery({
+    queryKey: ["doctors"],
+    queryFn: async () => {
+      const response = await fetch("/api/laboratory/doctors");
+      if (!response.ok) throw new Error("Failed to fetch doctors");
+      return response.json();
+    },
+  });
 
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
+  // Create doctor mutation
+  const createDoctorMutation = useMutation({
+    mutationFn: async (doctorData: CreateDoctorForm) => {
+      const response = await fetch("/api/laboratory/doctors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(doctorData),
+      });
+      if (!response.ok) throw new Error("Failed to create doctor");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["doctors"] });
+      setShowAddDoctorForm(false);
+      setNewDoctor({
+        name: "",
+        specialization: "",
+        phoneNumber: "",
+        email: "",
+        clinicName: "",
+        licenseNumber: "",
+      });
+    },
+  });
 
   // Initialize animations
   useEffect(() => {
@@ -130,51 +160,6 @@ export default function LaboratoryDoctorsPage() {
   if (userRole !== "admin" && userRole !== "laboratory") {
     redirect("/");
   }
-
-  // Form state for new doctor
-  const [newDoctor, setNewDoctor] = useState<CreateDoctorForm>({
-    name: "",
-    specialization: "",
-    phoneNumber: "",
-    email: "",
-    clinicName: "",
-    licenseNumber: "",
-  });
-
-  // Fetch all doctors
-  const { data: doctorsData, isLoading } = useQuery({
-    queryKey: ["doctors"],
-    queryFn: async () => {
-      const response = await fetch("/api/laboratory/doctors");
-      if (!response.ok) throw new Error("Failed to fetch doctors");
-      return response.json();
-    },
-  });
-
-  // Create doctor mutation
-  const createDoctorMutation = useMutation({
-    mutationFn: async (doctorData: CreateDoctorForm) => {
-      const response = await fetch("/api/laboratory/doctors", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(doctorData),
-      });
-      if (!response.ok) throw new Error("Failed to create doctor");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["doctors"] });
-      setShowAddDoctorForm(false);
-      setNewDoctor({
-        name: "",
-        specialization: "",
-        phoneNumber: "",
-        email: "",
-        clinicName: "",
-        licenseNumber: "",
-      });
-    },
-  });
 
   const handleCreateDoctor = () => {
     createDoctorMutation.mutate(newDoctor);
