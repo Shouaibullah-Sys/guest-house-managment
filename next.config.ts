@@ -1,23 +1,7 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Your Next.js configuration options go here
+  // For now, using minimal config since no special configuration is needed
+};
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
-const eslintConfig = [
-  // Use .extends() to translate 'extends' arrays from eslintrc
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
-  {
-    // Use .config.recommended to access the 'eslint:recommended' rules
-    rules: Object.fromEntries(
-      Object.keys(compat.config.recommended.rules).map((rule) => [rule, "off"])
-    ),
-  },
-];
-
-export default eslintConfig;
+export default nextConfig;
