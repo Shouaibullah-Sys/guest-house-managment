@@ -37,9 +37,10 @@ export const patients = pgTable("patients", {
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   phoneNumber: text("phone_number").notNull().unique(),
+  patientPin: text("patient_pin"), // Add this line - stores the unique PIN
   email: text("email"),
-  dateOfBirth: text("date_of_birth"), // ISO date string
-  gender: text("gender"), // male, female, other
+  dateOfBirth: text("date_of_birth"),
+  gender: text("gender"),
   address: text("address"),
   emergencyContact: text("emergency_contact"),
   medicalHistory: text("medical_history"),
@@ -170,3 +171,4 @@ export const answersRelations = relations(answers, ({ one }) => ({
     references: [questions.id],
   }),
 }));
+// 279109

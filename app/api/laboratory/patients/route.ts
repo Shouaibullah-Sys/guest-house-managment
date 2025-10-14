@@ -5,6 +5,11 @@ import { patients } from "@/db/schema";
 import { currentUser } from "@clerk/nextjs/server";
 import { desc } from "drizzle-orm";
 
+// PIN generation function
+function generatePatientPin(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit PIN
+}
+
 // GET - Fetch all patients
 export async function GET(req: NextRequest) {
   try {
@@ -19,6 +24,7 @@ export async function GET(req: NextRequest) {
         firstName: patients.firstName,
         lastName: patients.lastName,
         phoneNumber: patients.phoneNumber,
+        patientPin: patients.patientPin, // Include PIN in response
         email: patients.email,
         dateOfBirth: patients.dateOfBirth,
         gender: patients.gender,
@@ -55,12 +61,16 @@ export async function POST(req: NextRequest) {
       return new NextResponse("Missing required fields", { status: 400 });
     }
 
+    // Generate unique patient PIN
+    const patientPin = generatePatientPin();
+
     const newPatient = await db
       .insert(patients)
       .values({
         firstName: body.firstName,
         lastName: body.lastName,
         phoneNumber: body.phoneNumber,
+        patientPin: patientPin, // Store the generated PIN
         email: body.email,
         dateOfBirth: body.dateOfBirth,
         gender: body.gender,
@@ -70,7 +80,14 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
-    return NextResponse.json({ patient: newPatient[0] }, { status: 201 });
+    // Return the PIN so lab staff can provide it to the patient
+    return NextResponse.json(
+      {
+        patient: newPatient[0],
+        generatedPin: patientPin, // Include PIN in response
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Error creating patient:", error);
     return new NextResponse("Internal server error", { status: 500 });
