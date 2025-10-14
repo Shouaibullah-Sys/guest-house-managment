@@ -31,6 +31,7 @@
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.44.6",
     "jose": "^6.1.0",
+    "jspdf": "^3.0.3",
     "lucide-react": "^0.545.0",
     "mongoose": "^8.19.1",
     "next": "15.5.4",

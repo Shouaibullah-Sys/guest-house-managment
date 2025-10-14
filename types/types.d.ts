@@ -1,3 +1,4 @@
+// types/types.ts
 interface Answer {
   id: number | null;
   ans: string;
@@ -5,7 +6,7 @@ interface Answer {
   contributor: string;
   contributorId: string;
   questionId: number;
-  timestamp?: string; // ISO 8601 string format
+  timestamp?: string;
 }
 
 interface Question {
@@ -15,12 +16,11 @@ interface Question {
   answers: Answer[];
   contributor: string;
   contributorId: string;
-  timestamp?: string; // ISO 8601 string format
+  timestamp?: string;
 }
 
 type Roles = "admin" | "laboratory" | "patient";
 
-// Patient types
 export interface Patient {
   id: number;
   firstName: string;
@@ -36,7 +36,6 @@ export interface Patient {
   updatedAt: string;
 }
 
-// Doctor types
 export interface Doctor {
   id: number;
   name: string;
@@ -49,7 +48,6 @@ export interface Doctor {
   updatedAt: string;
 }
 
-// Laboratory test types
 export interface LaboratoryTest {
   id: number;
   patientId: number;
@@ -68,12 +66,35 @@ export interface LaboratoryTest {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
-  // Relations
   patient?: Patient;
   doctor?: Doctor;
 }
 
-// Form types for creating/editing
+export interface LaboratoryTestWithDetails extends LaboratoryTest {
+  patient?: Patient;
+  doctor?: Doctor;
+  reportId?: string;
+  generatedAt?: string;
+  laboratoryName?: string;
+  laboratoryAddress?: string;
+  laboratoryContact?: string;
+}
+
+export interface EditTestForm {
+  testType: string;
+  testName: string;
+  status: "pending" | "completed" | "cancelled";
+  results?: string;
+  notes?: string;
+  technician?: string;
+  amountCharged?: number;
+  amountPaid?: number;
+  paymentStatus?: "pending" | "paid" | "partial" | "waived";
+  urine?: any;
+  stool?: any;
+  blood?: any;
+}
+
 export interface CreatePatientForm {
   firstName: string;
   lastName: string;
@@ -100,6 +121,63 @@ export interface CreateLaboratoryTestForm {
   amountCharged?: number;
   amountPaid?: number;
   paymentStatus?: "pending" | "paid" | "partial" | "waived";
+
+  urine?: {
+    color?: string;
+    appearance?: string;
+    specificGravity?: string;
+    ph?: string;
+    protein?: string;
+    glucose?: string;
+    ketone?: string;
+    bilirubin?: string;
+    urobilinogen?: string;
+    nitrite?: string;
+    blood?: string;
+    pusCells?: string;
+    rbcs?: string;
+    epithelialCells?: string;
+    casts?: string;
+    crystals?: string;
+    bacteria?: string;
+  };
+
+  stool?: {
+    color?: string;
+    consistency?: string;
+    mucus?: string;
+    blood?: string;
+    undigestedFood?: string;
+    parasites?: string;
+    rbcs?: string;
+    pusCells?: string;
+    ovaCyst?: string;
+    fatGlobules?: string;
+    starchGranules?: string;
+    yeastCells?: string;
+    occultBlood?: string;
+    reducingSubstances?: string;
+    ph?: string;
+  };
+
+  blood?: {
+    hemoglobin?: string;
+    rbcCount?: string;
+    wbcCount?: string;
+    plateletCount?: string;
+    pcv?: string;
+    mcv?: string;
+    mch?: string;
+    mchc?: string;
+    neutrophils?: string;
+    lymphocytes?: string;
+    monocytes?: string;
+    eosinophils?: string;
+    basophils?: string;
+    esr?: string;
+    bloodGroup?: string;
+    bloodSugar?: string;
+  };
 }
 
 export interface CreateDoctorForm {
@@ -111,7 +189,6 @@ export interface CreateDoctorForm {
   licenseNumber?: string;
 }
 
-// Expense types
 export interface LaboratoryExpense {
   id: number;
   expenseType: "regular_payment" | "doctor_percentage" | "laboratory_salary";
@@ -128,7 +205,6 @@ export interface LaboratoryExpense {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
-  // Relations
   relatedTest?: LaboratoryTest;
   relatedDoctor?: Doctor;
 }
@@ -142,7 +218,6 @@ export interface DoctorCommission {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-  // Relations
   doctor?: Doctor;
 }
 
@@ -159,7 +234,6 @@ export interface LaboratoryStaff {
   updatedAt: string;
 }
 
-// Form types for expenses
 export interface CreateExpenseForm {
   expenseType: "regular_payment" | "doctor_percentage" | "laboratory_salary";
   description: string;
