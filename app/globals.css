@@ -1,26 +1,80 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Your Laboratory Color Palette */
+  --color-lab-50: #e0fbfc;
+  --color-lab-100: #c2dfe3;
+  --color-lab-200: #9db4c0;
+  --color-lab-300: #5c6b73;
+  --color-lab-400: #253237;
+
+  /* Semantic Colors for Shadcn/UI - Light Mode */
+  --background: var(--color-lab-50); /* Light blue background */
+  --foreground: var(--color-lab-400); /* Dark blue text */
+  --card: var(--color-lab-100); /* Light gray cards */
+  --card-foreground: var(--color-lab-400);
+  --popover: var(--color-lab-100);
+  --popover-foreground: var(--color-lab-400);
+  --primary: var(--color-lab-400); /* Dark blue primary */
+  --primary-foreground: var(--color-lab-50); /* Light text on primary */
+  --secondary: var(--color-lab-200); /* Medium blue secondary */
+  --secondary-foreground: var(--color-lab-400);
+  --muted: var(--color-lab-100);
+  --muted-foreground: var(--color-lab-300);
+  --accent: var(--color-lab-200);
+  --accent-foreground: var(--color-lab-400);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: var(--color-lab-200);
+  --input: var(--color-lab-100);
+  --ring: var(--color-lab-300);
+
+  /* Chart colors and other variables remain the same as your original setup */
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  --radius: 0.625rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+.dark {
+  /* Semantic Colors for Shadcn/UI - Dark Mode */
+  --background: var(--color-lab-400); /* Dark blue background */
+  --foreground: var(--color-lab-50); /* Light blue text */
+  --card: var(--color-lab-300); /* Medium blue cards */
+  --card-foreground: var(--color-lab-50);
+  --popover: var(--color-lab-300);
+  --popover-foreground: var(--color-lab-50);
+  --primary: var(--color-lab-50); /* Light blue primary */
+  --primary-foreground: var(--color-lab-400);
+  --secondary: var(--color-lab-300);
+  --secondary-foreground: var(--color-lab-50);
+  --muted: var(--color-lab-300);
+  --muted-foreground: var(--color-lab-100);
+  --accent: var(--color-lab-300);
+  --accent-foreground: var(--color-lab-50);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: var(--color-lab-300);
+  --input: var(--color-lab-300);
+  --ring: var(--color-lab-200);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-background text-foreground;
+  }
 }
