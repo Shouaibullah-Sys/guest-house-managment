@@ -21,7 +21,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import Header from "@/components/Header";
 import {
   Search,
   Download,
@@ -446,7 +445,7 @@ export default function PatientPortal() {
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50">
+    <div className="flex pt-8 min-h-screen flex-col bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50">
       {/* Animated Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 floating-element">
@@ -471,8 +470,6 @@ export default function PatientPortal() {
           <Stethoscope className="h-8 w-8 text-green-200 opacity-60" />
         </div>
       </div>
-
-      <Header />
 
       <main className="flex-grow container mx-auto px-4 py-8 relative z-10">
         {/* Hero Section */}

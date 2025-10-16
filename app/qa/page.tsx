@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import QuestionForm from "../../components/QuestionForm";
 import QuestionItem from "@/components/QuestionItem";
-import Header from "../../components/Header";
 import * as actions from "../../app/qa/actions";
 import { Question } from "@/types/types";
 
@@ -51,7 +50,6 @@ export default function QAPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
       <main className="container mx-auto flex-grow p-4">
         <QuestionForm onSubmit={addQuestion} />
         {Array.isArray(questions) && (

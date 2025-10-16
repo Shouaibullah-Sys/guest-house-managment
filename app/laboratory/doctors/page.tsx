@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
-import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -253,9 +252,6 @@ export default function LaboratoryDoctorsPage() {
           <Shield className="h-8 w-8 text-green-200 opacity-60" />
         </div>
       </div>
-
-      <Header />
-
       <main className="flex-grow container mx-auto p-4 md:p-6 relative z-10">
         {/* Hero Section */}
         <section className="mb-8" ref={heroRef}>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { UsersTable } from "@/components/UsersTable";
 
@@ -50,7 +49,6 @@ export default function UserManagementPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
       <main className="container mx-auto flex-grow p-4">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-800">User Management</h1>
