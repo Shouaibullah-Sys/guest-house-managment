@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -16,7 +16,8 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const testId = parseInt(params.id);
+    const { id } = await params;
+    const testId = parseInt(id);
 
     console.log("Updating test:", testId, body); // Debug log
 
@@ -81,7 +82,7 @@ export async function PUT(
 // Also add GET for single test (optional but useful)
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -89,7 +90,8 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const testId = parseInt(params.id);
+    const { id } = await params;
+    const testId = parseInt(id);
 
     const testData = await db
       .select()

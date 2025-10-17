@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -16,7 +16,8 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const doctorId = parseInt(params.id);
+    const { id } = await params;
+    const doctorId = parseInt(id);
 
     console.log("Updating doctor:", doctorId, body);
 
@@ -62,7 +63,7 @@ export async function PUT(
 // Optional: GET single doctor
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -70,7 +71,8 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const doctorId = parseInt(params.id);
+    const { id } = await params;
+    const doctorId = parseInt(id);
 
     const doctorData = await db
       .select()
