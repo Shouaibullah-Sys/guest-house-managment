@@ -25,7 +25,6 @@ export async function GET(req: NextRequest) {
         lastName: patients.lastName,
         phoneNumber: patients.phoneNumber,
         patientPin: patients.patientPin, // Include PIN in response
-        email: patients.email,
         dateOfBirth: patients.dateOfBirth,
         gender: patients.gender,
         address: patients.address,
@@ -71,7 +70,6 @@ export async function POST(req: NextRequest) {
         lastName: body.lastName,
         phoneNumber: body.phoneNumber,
         patientPin: patientPin, // Store the generated PIN
-        email: body.email,
         dateOfBirth: body.dateOfBirth,
         gender: body.gender,
         address: body.address,

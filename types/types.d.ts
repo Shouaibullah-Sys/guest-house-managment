@@ -28,7 +28,6 @@ export interface Patient {
   middleName?: string;
   phoneNumber: string;
   patientPin?: string;
-  email?: string;
   dateOfBirth?: string;
   gender?: string;
   address?: string;
@@ -44,7 +43,6 @@ export interface Doctor {
   name: string;
   specialization?: string;
   phoneNumber?: string;
-  email?: string;
   clinicName?: string;
   licenseNumber?: string;
   createdAt: string;
@@ -117,7 +115,6 @@ export interface CreatePatientForm {
   lastName: string;
   phoneNumber: string;
   patientPin?: string;
-  email?: string;
   dateOfBirth?: string;
   gender?: string;
   address?: string;
@@ -283,7 +280,6 @@ export interface CreateDoctorForm {
   name: string;
   specialization?: string;
   phoneNumber?: string;
-  email?: string;
   clinicName?: string;
   licenseNumber?: string;
 }
@@ -370,7 +366,6 @@ export interface PatientSearchResult {
   firstName: string;
   lastName: string;
   phoneNumber: string;
-  email?: string;
   dateOfBirth?: string;
   gender?: string;
   address?: string;
@@ -470,7 +465,6 @@ export interface PatientFormValidation {
   firstName: string;
   lastName: string;
   phoneNumber: string;
-  email?: string;
 }
 
 export interface TestFormValidation {

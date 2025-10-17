@@ -1,7 +1,57 @@
-// lib/pdf-generator.ts
+// lib/pdf-generator.tsx
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { LaboratoryTestWithDetails, Doctor, Patient } from "@/types/types";
+
+// Types
+export interface Doctor {
+  id: string;
+  name: string;
+  specialization?: string;
+  licenseNumber?: string;
+  contactNumber?: string;
+}
+
+export interface Patient {
+  id: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  dateOfBirth?: string;
+  gender?: string;
+  phoneNumber?: string;
+  emergencyContact?: string;
+  insuranceProvider?: string;
+  lastVisitDate?: string;
+}
+
+export interface LaboratoryTestWithDetails {
+  id: string;
+  testName: string;
+  testType: string;
+  testDate: string;
+  status: string;
+  reportId?: string;
+  laboratoryName?: string;
+  laboratoryAddress?: string;
+  laboratoryContact?: string;
+  clinicalHistory?: string;
+  symptoms?: string;
+  currentMedications?: string;
+  fastingRequired?: boolean;
+  specialInstructions?: string;
+  collectionSite?: string;
+  collectedBy?: string;
+  receivedDate?: string;
+  completedDate?: string;
+  technician?: string;
+  notes?: string;
+  amountCharged?: number;
+  amountPaid?: number;
+  discount?: number;
+  patient?: Patient;
+  doctor?: Doctor;
+  results?: any[];
+}
 
 // Declare jsPDF with autoTable plugin
 declare module "jspdf" {
@@ -27,15 +77,15 @@ interface PDFColors {
 
 export class LabReportPDF {
   private static readonly COLORS: PDFColors = {
-    primary: [0, 112, 192], // Professional blue
-    secondary: [0, 176, 240], // Light blue
-    success: [0, 176, 80], // Green
-    warning: [255, 192, 0], // Amber
-    danger: [255, 0, 0], // Red
-    info: [91, 155, 213], // Sky blue
-    dark: [47, 84, 150], // Dark blue
-    light: [242, 242, 242], // Light gray
-    gray: [118, 118, 118], // Medium gray
+    primary: [0, 112, 192],
+    secondary: [0, 176, 240],
+    success: [0, 176, 80],
+    warning: [255, 192, 0],
+    danger: [255, 0, 0],
+    info: [91, 155, 213],
+    dark: [47, 84, 150],
+    light: [242, 242, 242],
+    gray: [118, 118, 118],
   };
 
   private static readonly FONTS = {
@@ -45,14 +95,22 @@ export class LabReportPDF {
     bold: "helvetica",
   };
 
+  private static readonly MARGINS = {
+    top: 15,
+    left: 15,
+    right: 15,
+    bottom: 25,
+  };
+
+  private static readonly PAGE_HEIGHT = 297;
+  private static readonly CONTENT_HEIGHT = 267;
+
   static generateReport(test: LaboratoryTestWithDetails): jsPDF {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 15;
-    let yPosition = margin;
+    let currentY = this.MARGINS.top;
 
-    // Set document properties
+    // Set document properties with proper encoding
     doc.setProperties({
       title: `Lab Report - ${test.patient?.lastName || "Patient"} - ${
         test.testName
@@ -63,75 +121,50 @@ export class LabReportPDF {
       keywords: `laboratory, medical, test, results, ${test.testType}, ${test.patient?.lastName}`,
     });
 
-    // ===== ENHANCED HEADER SECTION =====
-    this.addEnhancedHeader(doc, test, pageWidth);
-    yPosition = 70;
+    // ===== HEADER SECTION =====
+    currentY = this.addEnhancedHeader(doc, test, pageWidth, currentY);
+
+    // ===== QUICK STATS BAR =====
+    currentY = this.addQuickStatsBar(doc, test, pageWidth, currentY) + 5;
 
     // ===== PATIENT INFORMATION SECTION =====
-    yPosition = this.addEnhancedPatientInformation(
+    currentY = this.addEnhancedPatientInformation(
       doc,
       test,
-      margin,
-      yPosition,
+      currentY,
       pageWidth
     );
+    currentY = this.checkPageBreak(doc, currentY, 50);
 
     // ===== CLINICAL INFORMATION SECTION =====
-    yPosition = this.addClinicalInformation(
-      doc,
-      test,
-      margin,
-      yPosition,
-      pageWidth
-    );
+    currentY = this.addClinicalInformation(doc, test, currentY, pageWidth);
+    currentY = this.checkPageBreak(doc, currentY, 50);
 
     // ===== TEST DETAILS SECTION =====
-    yPosition = this.addTestDetails(doc, test, margin, yPosition, pageWidth);
+    currentY = this.addTestDetails(doc, test, currentY, pageWidth);
+    currentY = this.checkPageBreak(doc, currentY, 100);
 
     // ===== COMPREHENSIVE RESULTS SECTION =====
-    yPosition = this.addComprehensiveResults(
-      doc,
-      test,
-      margin,
-      yPosition,
-      pageWidth
-    );
+    currentY = this.addComprehensiveResults(doc, test, currentY, pageWidth);
+    currentY = this.checkPageBreak(doc, currentY, 80);
 
     // ===== INTERPRETATION & RECOMMENDATIONS =====
-    yPosition = this.addEnhancedInterpretation(
-      doc,
-      test,
-      margin,
-      yPosition,
-      pageWidth
-    );
+    currentY = this.addEnhancedInterpretation(doc, test, currentY, pageWidth);
+    currentY = this.checkPageBreak(doc, currentY, 50);
 
     // ===== QUALITY CONTROL SECTION =====
-    yPosition = this.addQualityControl(doc, test, margin, yPosition, pageWidth);
+    currentY = this.addQualityControl(doc, test, currentY, pageWidth);
+    currentY = this.checkPageBreak(doc, currentY, 50);
 
     // ===== TECHNICAL DETAILS =====
-    yPosition = this.addTechnicalDetails(
-      doc,
-      test,
-      margin,
-      yPosition,
-      pageWidth
-    );
+    currentY = this.addTechnicalDetails(doc, test, currentY, pageWidth);
+    currentY = this.checkPageBreak(doc, currentY, 50);
 
     // ===== FINANCIAL SUMMARY =====
-    yPosition = this.addFinancialSummary(
-      doc,
-      test,
-      margin,
-      yPosition,
-      pageWidth
-    );
+    currentY = this.addFinancialSummary(doc, test, currentY, pageWidth);
 
-    // ===== ENHANCED FOOTER =====
-    this.addEnhancedFooter(doc, test, pageWidth, pageHeight);
-
-    // Add page border
-    this.addPageBorder(doc, pageWidth, pageHeight);
+    // ===== FOOTER =====
+    this.addEnhancedFooter(doc, test, pageWidth);
 
     return doc;
   }
@@ -139,8 +172,9 @@ export class LabReportPDF {
   private static addEnhancedHeader(
     doc: jsPDF,
     test: LaboratoryTestWithDetails,
-    pageWidth: number
-  ) {
+    pageWidth: number,
+    yPosition: number
+  ): number {
     // Main header with gradient effect
     doc.setFillColor(
       this.COLORS.dark[0],
@@ -149,100 +183,60 @@ export class LabReportPDF {
     );
     doc.rect(0, 0, pageWidth, 50, "F");
 
-    // Laboratory Logo Area - Load actual logo
+    // Laboratory Logo Area
     try {
-      // Create a more professional logo area
       doc.setFillColor(255, 255, 255, 25);
       doc.circle(30, 25, 18, "F");
-
-      // Add inner circle for logo border
       doc.setDrawColor(255, 255, 255, 60);
       doc.setLineWidth(2);
       doc.circle(30, 25, 18, "S");
 
-      // Try to load and add the actual logo.png
-      try {
-        // Logo integration - Base64 encoded logo would go here
-        const logoBase64 = this.getLogoBase64();
-
-        if (logoBase64) {
-          // Add the actual logo image
-          doc.addImage(
-            logoBase64,
-            "PNG",
-            12, // x position
-            7, // y position
-            36, // width
-            36, // height
-            "logo",
-            "FAST"
-          );
-        } else {
-          // Fallback to text-based logo if image not available
-          doc.setFontSize(10);
-          doc.setTextColor(255, 255, 255);
-          doc.setFont(this.FONTS.title, "bold");
-
-          // Create clinic branding
-          const logoText = "DR SEBGHAT";
-          doc.text(logoText, 30, 22, { align: "center" });
-
-          doc.setFontSize(6);
-          doc.text("CLINIC", 30, 28, { align: "center" });
-
-          // Add a small medical symbol
-          doc.setFontSize(8);
-          doc.text("MEDICAL", 30, 35, { align: "center" });
-        }
-      } catch (logoError) {
-        // Fallback to simple text if logo loading fails
-        doc.setFontSize(8);
-        doc.setTextColor(255, 255, 255);
-        doc.setFont(this.FONTS.title, "bold");
-        doc.text("MEDICAL", 30, 22, { align: "center" });
-        doc.text("LAB", 30, 28, { align: "center" });
-      }
+      // Simple text-based logo
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.setFont(this.FONTS.title, "bold");
+      doc.text("DR SEBGHAT", 30, 22, { align: "center" });
+      doc.setFontSize(6);
+      doc.text("CLINIC", 30, 28, { align: "center" });
+      doc.setFontSize(8);
+      doc.text("MEDICAL", 30, 35, { align: "center" });
     } catch (error) {
-      // Fallback if logo rendering fails
-      doc.setFillColor(255, 255, 255, 20);
-      doc.circle(30, 25, 15, "F");
+      console.log("Logo rendering failed, using fallback");
     }
 
     // Laboratory Name
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
     doc.setFont(this.FONTS.title, "bold");
-    doc.text(
-      test.laboratoryName?.toUpperCase() || "ADVANCED MEDICAL LABORATORY",
-      pageWidth / 2,
-      20,
-      { align: "center" }
+
+    const labName = this.ensureAscii(
+      test.laboratoryName?.toUpperCase() || "ADVANCED MEDICAL LABORATORY"
     );
+    doc.text(labName, pageWidth / 2, 20, { align: "center" });
 
     // Accreditation and Certifications
     doc.setFontSize(8);
     doc.setFont(this.FONTS.subtitle, "normal");
-    doc.text(
-      "ISO 15189:2012 Certified • CAP Accredited • CLIA Certified",
-      pageWidth / 2,
-      26,
-      {
-        align: "center",
-      }
-    );
+    const accreditation =
+      "ISO 15189:2012 Certified - CAP Accredited - CLIA Certified";
+    doc.text(accreditation, pageWidth / 2, 26, { align: "center" });
 
     // Contact Information
     const contactInfo = [
-      test.laboratoryAddress ||
-        "123 Medical Center Drive, Healthcare City, HC 12345",
+      this.ensureAscii(
+        test.laboratoryAddress ||
+          "123 Medical Center Drive, Healthcare City, HC 12345"
+      ),
       `Phone: ${
         test.laboratoryContact || "+1 (555) 123-HEAL"
-      } • Email: info@medlab.com`,
-      "Web: www.advancedmedlab.com • 24/7 Emergency Services Available",
+      } - Email: info@medlab.com`,
+      "Web: www.advancedmedlab.com - 24/7 Emergency Services Available",
     ];
 
     contactInfo.forEach((info, index) => {
-      doc.text(info, pageWidth / 2, 32 + index * 4, { align: "center" });
+      doc.text(this.ensureAscii(info), pageWidth / 2, 32 + index * 4, {
+        align: "center",
+      });
     });
 
     // Report Title with background
@@ -256,15 +250,14 @@ export class LabReportPDF {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);
     doc.setFont(this.FONTS.title, "bold");
-    doc.text("LABORATORY TEST REPORT", pageWidth / 2, 55, {
-      align: "center",
-    });
+    doc.text("LABORATORY TEST REPORT", pageWidth / 2, 55, { align: "center" });
 
     // Report Metadata
     doc.setFontSize(7);
     doc.setFont(this.FONTS.body, "normal");
     const reportId =
       test.reportId || `LAB-${test.id}-${this.generateUniqueId()}`;
+
     doc.text(`Report ID: ${reportId}`, 15, 62);
     doc.text(
       `Accession #: ACC-${test.id}-${new Date().getFullYear()}`,
@@ -274,19 +267,20 @@ export class LabReportPDF {
         align: "center",
       }
     );
-    doc.text(
-      `Generated: ${new Date().toLocaleString("en-US", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })}`,
-      pageWidth - 15,
-      62,
-      { align: "right" }
-    );
+
+    const generatedDate = new Date().toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    doc.text(`Generated: ${generatedDate}`, pageWidth - 15, 62, {
+      align: "right",
+    });
+
+    return 70;
   }
 
   private static addQuickStatsBar(
@@ -297,28 +291,24 @@ export class LabReportPDF {
   ): number {
     const stats = [
       {
-        label: "",
+        label: "STATUS",
         value: this.getFormattedStatus(test.status),
         color: this.getStatusColor(test.status),
-        icon: "",
       },
       {
-        label: "",
+        label: "PRIORITY",
         value: this.getTestPriority(test),
         color: this.COLORS.info,
-        icon: "",
       },
       {
-        label: "",
+        label: "TURNAROUND",
         value: this.getTurnaroundTime(test),
         color: this.COLORS.success,
-        icon: "",
       },
       {
-        label: "",
+        label: "CONFIDENTIAL",
         value: "HIGH",
         color: this.COLORS.warning,
-        icon: "",
       },
     ];
 
@@ -340,8 +330,9 @@ export class LabReportPDF {
       doc.setFontSize(7);
       doc.setFont(this.FONTS.body, "bold");
       doc.setTextColor(stat.color[0], stat.color[1], stat.color[2]);
-      doc.text(stat.icon, x + 8, yPosition + 7);
-      doc.text(stat.label, x + 15, yPosition + 7);
+      doc.text(stat.label, x + (statWidth - 5) / 2, yPosition + 7, {
+        align: "center",
+      });
 
       doc.setFontSize(9);
       doc.setFont(this.FONTS.title, "bold");
@@ -350,17 +341,21 @@ export class LabReportPDF {
       });
     });
 
-    return yPosition + 30;
+    return yPosition + 25;
   }
 
   private static addEnhancedPatientInformation(
     doc: jsPDF,
     test: LaboratoryTestWithDetails,
-    margin: number,
     yPosition: number,
     pageWidth: number
   ): number {
-    this.addSectionHeader(doc, "PATIENT DEMOGRAPHICS", margin, yPosition);
+    this.addSectionHeader(
+      doc,
+      "PATIENT DEMOGRAPHICS",
+      this.MARGINS.left,
+      yPosition
+    );
 
     if (!test.patient) {
       doc.setFontSize(9);
@@ -369,15 +364,19 @@ export class LabReportPDF {
         this.COLORS.danger[1],
         this.COLORS.danger[2]
       );
-      doc.text("No patient information available", margin, yPosition + 10);
+      doc.text(
+        "No patient information available",
+        this.MARGINS.left,
+        yPosition + 10
+      );
       return yPosition + 15;
     }
 
     const patient = test.patient;
-    const middleX = pageWidth / 2;
+    const columnWidth = (pageWidth - 2 * this.MARGINS.left) / 2;
 
     // Left Column - Basic Info
-    const basicInfo = [
+    const leftColumn = [
       [
         "Full Name:",
         `${patient.firstName} ${patient.middleName || ""} ${
@@ -403,8 +402,7 @@ export class LabReportPDF {
     ];
 
     // Right Column - Additional Info
-    const additionalInfo = [
-      ["Email:", patient.email || "Not provided"],
+    const rightColumn = [
       ["Emergency Contact:", patient.emergencyContact || "Not provided"],
       [
         "Last Visit:",
@@ -412,12 +410,26 @@ export class LabReportPDF {
           ? new Date(patient.lastVisitDate).toLocaleDateString()
           : "First visit",
       ],
+      ["Insurance:", patient.insuranceProvider || "Not provided"],
     ];
+
+    // Create a combined table for better layout
+    const combinedData = [];
+    const maxRows = Math.max(leftColumn.length, rightColumn.length);
+
+    for (let i = 0; i < maxRows; i++) {
+      const row = [];
+      row.push(leftColumn[i]?.[0] || "");
+      row.push(leftColumn[i]?.[1] || "");
+      row.push(rightColumn[i]?.[0] || "");
+      row.push(rightColumn[i]?.[1] || "");
+      combinedData.push(row);
+    }
 
     autoTable(doc, {
       startY: yPosition + 8,
-      margin: { left: margin, right: margin },
-      body: [...basicInfo, ...additionalInfo],
+      margin: { left: this.MARGINS.left, right: this.MARGINS.right },
+      body: combinedData,
       theme: "grid",
       styles: {
         fontSize: 8,
@@ -426,23 +438,10 @@ export class LabReportPDF {
         lineWidth: 0.1,
       },
       columnStyles: {
-        0: {
-          fontStyle: "bold",
-          cellWidth: 45,
-          fillColor: [245, 245, 245],
-        },
-        1: { fontStyle: "normal" },
-        2: {
-          fontStyle: "bold",
-          cellWidth: 45,
-          fillColor: [245, 245, 245],
-        },
-        3: { fontStyle: "normal" },
-      },
-      didParseCell: (data: any) => {
-        if (data.section === "body") {
-          data.cell.styles.textColor = [50, 50, 50];
-        }
+        0: { fontStyle: "bold", cellWidth: 35, fillColor: [245, 245, 245] },
+        1: { fontStyle: "normal", cellWidth: columnWidth - 35 },
+        2: { fontStyle: "bold", cellWidth: 40, fillColor: [245, 245, 245] },
+        3: { fontStyle: "normal", cellWidth: columnWidth - 40 },
       },
     });
 
@@ -452,11 +451,15 @@ export class LabReportPDF {
   private static addClinicalInformation(
     doc: jsPDF,
     test: LaboratoryTestWithDetails,
-    margin: number,
     yPosition: number,
     pageWidth: number
   ): number {
-    this.addSectionHeader(doc, "CLINICAL INFORMATION", margin, yPosition);
+    this.addSectionHeader(
+      doc,
+      "CLINICAL INFORMATION",
+      this.MARGINS.left,
+      yPosition
+    );
 
     const clinicalInfo = [];
 
@@ -487,7 +490,7 @@ export class LabReportPDF {
 
     autoTable(doc, {
       startY: yPosition + 8,
-      margin: { left: margin, right: margin },
+      margin: { left: this.MARGINS.left, right: this.MARGINS.right },
       body: clinicalInfo,
       theme: "grid",
       styles: {
@@ -497,11 +500,7 @@ export class LabReportPDF {
         lineWidth: 0.1,
       },
       columnStyles: {
-        0: {
-          fontStyle: "bold",
-          cellWidth: 50,
-          fillColor: [245, 245, 245],
-        },
+        0: { fontStyle: "bold", cellWidth: 50, fillColor: [245, 245, 245] },
         1: { fontStyle: "normal" },
       },
     });
@@ -512,11 +511,15 @@ export class LabReportPDF {
   private static addTestDetails(
     doc: jsPDF,
     test: LaboratoryTestWithDetails,
-    margin: number,
     yPosition: number,
     pageWidth: number
   ): number {
-    this.addSectionHeader(doc, "TEST SPECIFICATIONS", margin, yPosition);
+    this.addSectionHeader(
+      doc,
+      "TEST SPECIFICATIONS",
+      this.MARGINS.left,
+      yPosition
+    );
 
     const testDetails = [
       ["Test Name:", test.testName],
@@ -527,9 +530,6 @@ export class LabReportPDF {
       ["Container:", this.getSampleContainer(test.testType)],
       ["Sample Volume:", this.getSampleVolume(test.testType)],
       ["Stability:", this.getSampleStability(test.testType)],
-    ];
-
-    const collectionInfo = [
       ["Collection Date:", new Date(test.testDate).toLocaleString()],
       [
         "Received Date:",
@@ -545,8 +545,8 @@ export class LabReportPDF {
 
     autoTable(doc, {
       startY: yPosition + 8,
-      margin: { left: margin, right: margin },
-      body: [...testDetails, ...collectionInfo],
+      margin: { left: this.MARGINS.left, right: this.MARGINS.right },
+      body: testDetails,
       theme: "grid",
       styles: {
         fontSize: 8,
@@ -555,18 +555,8 @@ export class LabReportPDF {
         lineWidth: 0.1,
       },
       columnStyles: {
-        0: {
-          fontStyle: "bold",
-          cellWidth: 45,
-          fillColor: [245, 245, 245],
-        },
+        0: { fontStyle: "bold", cellWidth: 45, fillColor: [245, 245, 245] },
         1: { fontStyle: "normal" },
-        2: {
-          fontStyle: "bold",
-          cellWidth: 45,
-          fillColor: [245, 245, 245],
-        },
-        3: { fontStyle: "normal" },
       },
     });
 
@@ -576,17 +566,21 @@ export class LabReportPDF {
   private static addComprehensiveResults(
     doc: jsPDF,
     test: LaboratoryTestWithDetails,
-    margin: number,
     yPosition: number,
     pageWidth: number
   ): number {
-    this.addSectionHeader(doc, "LABORATORY RESULTS", margin, yPosition);
+    this.addSectionHeader(
+      doc,
+      "LABORATORY RESULTS",
+      this.MARGINS.left,
+      yPosition
+    );
 
     const results = this.generateComprehensiveResults(test);
 
     autoTable(doc, {
       startY: yPosition + 8,
-      margin: { left: margin, right: margin },
+      margin: { left: this.MARGINS.left, right: this.MARGINS.right },
       head: [
         ["ANALYTE", "RESULT", "UNITS", "REFERENCE RANGE", "FLAGS", "STATUS"],
       ],
@@ -619,12 +613,10 @@ export class LabReportPDF {
       },
       didParseCell: (data: any) => {
         if (data.section === "body") {
-          // Alternate row colors
           if (data.row.index % 2 === 0) {
             data.cell.styles.fillColor = [250, 250, 250];
           }
 
-          // Highlight critical values
           if (data.column.index === 4) {
             const flag = data.cell.raw;
             if (flag === "HIGH" || flag === "LOW") {
@@ -637,7 +629,6 @@ export class LabReportPDF {
             }
           }
 
-          // Color code status
           if (data.column.index === 5) {
             const status = data.cell.raw;
             if (status === "NORMAL") {
@@ -652,18 +643,21 @@ export class LabReportPDF {
       },
     });
 
-    // Add results summary
-    const summaryY = (doc.lastAutoTable?.finalY || yPosition) + 8;
-    this.addResultsSummary(doc, test, results, margin, summaryY, pageWidth);
+    const tableEndY = doc.lastAutoTable?.finalY || yPosition;
 
-    return summaryY + 20;
+    // Add results summary if there's space
+    if (tableEndY + 25 < this.PAGE_HEIGHT - this.MARGINS.bottom) {
+      this.addResultsSummary(doc, test, results, tableEndY + 5, pageWidth);
+      return tableEndY + 30;
+    }
+
+    return tableEndY + 5;
   }
 
   private static addResultsSummary(
     doc: jsPDF,
     test: LaboratoryTestWithDetails,
     results: string[][],
-    margin: number,
     yPosition: number,
     pageWidth: number
   ) {
@@ -678,32 +672,17 @@ export class LabReportPDF {
       this.COLORS.dark[1],
       this.COLORS.dark[2]
     );
-    doc.text("RESULTS SUMMARY:", margin, yPosition);
+    doc.text("RESULTS SUMMARY:", this.MARGINS.left, yPosition);
 
-    const summaryWidth = (pageWidth - 2 * margin - 20) / 3;
+    const summaryWidth = (pageWidth - 2 * this.MARGINS.left - 20) / 3;
     const summaries = [
-      {
-        label: "NORMAL",
-        count: normalCount,
-        color: this.COLORS.success,
-        icon: "+",
-      },
-      {
-        label: "ABNORMAL",
-        count: abnormalCount,
-        color: this.COLORS.warning,
-        icon: "!",
-      },
-      {
-        label: "CRITICAL",
-        count: criticalCount,
-        color: this.COLORS.danger,
-        icon: "*",
-      },
+      { label: "NORMAL", count: normalCount, color: this.COLORS.success },
+      { label: "ABNORMAL", count: abnormalCount, color: this.COLORS.warning },
+      { label: "CRITICAL", count: criticalCount, color: this.COLORS.danger },
     ];
 
     summaries.forEach((summary, index) => {
-      const x = margin + index * (summaryWidth + 10);
+      const x = this.MARGINS.left + index * (summaryWidth + 10);
 
       doc.setFillColor(
         summary.color[0],
@@ -716,8 +695,9 @@ export class LabReportPDF {
       doc.setFontSize(7);
       doc.setFont(this.FONTS.body, "bold");
       doc.setTextColor(summary.color[0], summary.color[1], summary.color[2]);
-      doc.text(summary.icon, x + 5, yPosition + 9);
-      doc.text(summary.label, x + 12, yPosition + 9);
+      doc.text(summary.label, x + summaryWidth / 2, yPosition + 9, {
+        align: "center",
+      });
 
       doc.setFontSize(9);
       doc.setFont(this.FONTS.title, "bold");
@@ -730,11 +710,15 @@ export class LabReportPDF {
   private static addEnhancedInterpretation(
     doc: jsPDF,
     test: LaboratoryTestWithDetails,
-    margin: number,
     yPosition: number,
     pageWidth: number
   ): number {
-    this.addSectionHeader(doc, "CLINICAL INTERPRETATION", margin, yPosition);
+    this.addSectionHeader(
+      doc,
+      "CLINICAL INTERPRETATION",
+      this.MARGINS.left,
+      yPosition
+    );
 
     const interpretation = this.generateDetailedInterpretation(test);
     const recommendations = this.generateClinicalRecommendations(test);
@@ -747,9 +731,9 @@ export class LabReportPDF {
       this.COLORS.info[2]
     );
     doc.roundedRect(
-      margin,
+      this.MARGINS.left,
       yPosition + 8,
-      pageWidth - 2 * margin,
+      pageWidth - 2 * this.MARGINS.left,
       35,
       3,
       3,
@@ -763,18 +747,27 @@ export class LabReportPDF {
       this.COLORS.info[1],
       this.COLORS.info[2]
     );
-    doc.text("INTERPRETATION:", margin + 5, yPosition + 15);
+    doc.text("INTERPRETATION:", this.MARGINS.left + 5, yPosition + 15);
 
     doc.setFontSize(7);
     doc.setFont(this.FONTS.body, "normal");
     doc.setTextColor(0, 0, 0);
     const interpretationLines = doc.splitTextToSize(
       interpretation,
-      pageWidth - 2 * margin - 10
+      pageWidth - 2 * this.MARGINS.left - 10
     );
-    doc.text(interpretationLines, margin + 5, yPosition + 21);
+    doc.text(interpretationLines, this.MARGINS.left + 5, yPosition + 21);
 
     // Recommendations box
+    const recommendationsY = yPosition + 48;
+
+    // Check if we have space for recommendations
+    if (recommendationsY + 25 > this.PAGE_HEIGHT - this.MARGINS.bottom) {
+      doc.addPage();
+      this.addPageHeader(doc, pageWidth);
+      yPosition = this.MARGINS.top + 20;
+    }
+
     doc.setFillColor(255, 255, 255);
     doc.setDrawColor(
       this.COLORS.success[0],
@@ -782,9 +775,9 @@ export class LabReportPDF {
       this.COLORS.success[2]
     );
     doc.roundedRect(
-      margin,
+      this.MARGINS.left,
       yPosition + 48,
-      pageWidth - 2 * margin,
+      pageWidth - 2 * this.MARGINS.left,
       25,
       3,
       3,
@@ -798,16 +791,20 @@ export class LabReportPDF {
       this.COLORS.success[1],
       this.COLORS.success[2]
     );
-    doc.text("CLINICAL RECOMMENDATIONS:", margin + 5, yPosition + 55);
+    doc.text(
+      "CLINICAL RECOMMENDATIONS:",
+      this.MARGINS.left + 5,
+      yPosition + 55
+    );
 
     doc.setFontSize(7);
     doc.setFont(this.FONTS.body, "normal");
     doc.setTextColor(0, 0, 0);
     const recommendationLines = doc.splitTextToSize(
       recommendations,
-      pageWidth - 2 * margin - 10
+      pageWidth - 2 * this.MARGINS.left - 10
     );
-    doc.text(recommendationLines, margin + 5, yPosition + 61);
+    doc.text(recommendationLines, this.MARGINS.left + 5, yPosition + 61);
 
     return yPosition + 78;
   }
@@ -815,11 +812,10 @@ export class LabReportPDF {
   private static addQualityControl(
     doc: jsPDF,
     test: LaboratoryTestWithDetails,
-    margin: number,
     yPosition: number,
     pageWidth: number
   ): number {
-    this.addSectionHeader(doc, "QUALITY CONTROL", margin, yPosition);
+    this.addSectionHeader(doc, "QUALITY CONTROL", this.MARGINS.left, yPosition);
 
     const qcData = [
       ["Internal QC", "PASS", "Within Range", new Date().toLocaleDateString()],
@@ -841,7 +837,7 @@ export class LabReportPDF {
 
     autoTable(doc, {
       startY: yPosition + 8,
-      margin: { left: margin, right: margin },
+      margin: { left: this.MARGINS.left, right: this.MARGINS.right },
       head: [["QC PARAMETER", "STATUS", "DETAILS", "EXPIRY/VALIDITY"]],
       body: qcData,
       theme: "grid",
@@ -883,11 +879,15 @@ export class LabReportPDF {
   private static addTechnicalDetails(
     doc: jsPDF,
     test: LaboratoryTestWithDetails,
-    margin: number,
     yPosition: number,
     pageWidth: number
   ): number {
-    this.addSectionHeader(doc, "TECHNICAL DETAILS", margin, yPosition);
+    this.addSectionHeader(
+      doc,
+      "TECHNICAL DETAILS",
+      this.MARGINS.left,
+      yPosition
+    );
 
     const technicalDetails = [
       ["Method Principle:", this.getMethodPrinciple(test.testType)],
@@ -904,7 +904,7 @@ export class LabReportPDF {
 
     autoTable(doc, {
       startY: yPosition + 8,
-      margin: { left: margin, right: margin },
+      margin: { left: this.MARGINS.left, right: this.MARGINS.right },
       body: technicalDetails,
       theme: "grid",
       styles: {
@@ -914,11 +914,7 @@ export class LabReportPDF {
         lineWidth: 0.1,
       },
       columnStyles: {
-        0: {
-          fontStyle: "bold",
-          cellWidth: 45,
-          fillColor: [245, 245, 245],
-        },
+        0: { fontStyle: "bold", cellWidth: 45, fillColor: [245, 245, 245] },
         1: { fontStyle: "normal" },
       },
     });
@@ -929,11 +925,15 @@ export class LabReportPDF {
   private static addFinancialSummary(
     doc: jsPDF,
     test: LaboratoryTestWithDetails,
-    margin: number,
     yPosition: number,
     pageWidth: number
   ): number {
-    this.addSectionHeader(doc, "FINANCIAL SUMMARY", margin, yPosition);
+    this.addSectionHeader(
+      doc,
+      "FINANCIAL SUMMARY",
+      this.MARGINS.left,
+      yPosition
+    );
 
     const amountCharged = test.amountCharged || 0;
     const amountPaid = test.amountPaid || 0;
@@ -961,7 +961,7 @@ export class LabReportPDF {
 
     autoTable(doc, {
       startY: yPosition + 8,
-      margin: { left: margin, right: margin },
+      margin: { left: this.MARGINS.left, right: this.MARGINS.right },
       body: financialData,
       theme: "grid",
       styles: {
@@ -971,20 +971,9 @@ export class LabReportPDF {
         lineWidth: 0.1,
       },
       columnStyles: {
-        0: {
-          fontStyle: "bold",
-          cellWidth: 60,
-          fillColor: [245, 245, 245],
-        },
-        1: {
-          fontStyle: "bold",
-          halign: "right",
-          cellWidth: 40,
-        },
-        2: {
-          halign: "center",
-          cellWidth: 30,
-        },
+        0: { fontStyle: "bold", cellWidth: 60, fillColor: [245, 245, 245] },
+        1: { fontStyle: "bold", halign: "right", cellWidth: 40 },
+        2: { halign: "center", cellWidth: 30 },
       },
       didParseCell: (data: any) => {
         if (data.section === "body") {
@@ -1006,104 +995,108 @@ export class LabReportPDF {
   private static addEnhancedFooter(
     doc: jsPDF,
     test: LaboratoryTestWithDetails,
-    pageWidth: number,
-    pageHeight: number
+    pageWidth: number
   ) {
-    const footerY = pageHeight - 25;
+    const pageCount = doc.getNumberOfPages();
 
-    // Company promotion with background
-    doc.setFillColor(240, 240, 240);
-    doc.rect(0, footerY - 15, pageWidth, 40, "F");
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      const footerY = this.PAGE_HEIGHT - 15;
 
-    doc.setFontSize(7);
-    doc.setFont(this.FONTS.body, "bold");
-    doc.setTextColor(
+      // Page number
+      doc.setFontSize(8);
+      doc.setFont(this.FONTS.body, "normal");
+      doc.setTextColor(
+        this.COLORS.gray[0],
+        this.COLORS.gray[1],
+        this.COLORS.gray[2]
+      );
+      doc.text(`Page ${i} of ${pageCount}`, pageWidth / 2, footerY, {
+        align: "center",
+      });
+
+      // Report ID and timestamp
+      doc.text(
+        `Report ID: ${
+          test.reportId || `LAB-${test.id}`
+        } - Generated: ${new Date().toLocaleDateString()}`,
+        pageWidth / 2,
+        footerY + 5,
+        { align: "center" }
+      );
+
+      // Only show company info on last page
+      if (i === pageCount) {
+        const companyY = footerY - 25;
+        doc.setFillColor(240, 240, 240);
+        doc.rect(0, companyY - 10, pageWidth, 30, "F");
+
+        const companyInfo = [
+          "This laboratory management system was developed by:",
+          "RAHIMI SOLUTION",
+          "Professional Software Engineering Company",
+          "Email: rahimisolution@outlook.com - Facebook: Rahimi Solution",
+        ];
+
+        companyInfo.forEach((line, index) => {
+          if (line === "RAHIMI SOLUTION") {
+            doc.setFontSize(9);
+            doc.setFont(this.FONTS.title, "bold");
+            doc.setTextColor(
+              this.COLORS.primary[0],
+              this.COLORS.primary[1],
+              this.COLORS.primary[2]
+            );
+          } else {
+            doc.setFontSize(7);
+            doc.setFont(this.FONTS.body, "normal");
+            doc.setTextColor(
+              this.COLORS.dark[0],
+              this.COLORS.dark[1],
+              this.COLORS.dark[2]
+            );
+          }
+          doc.text(line, pageWidth / 2, companyY + index * 4, {
+            align: "center",
+          });
+        });
+      }
+    }
+  }
+
+  private static checkPageBreak(
+    doc: jsPDF,
+    currentY: number,
+    requiredSpace: number
+  ): number {
+    if (currentY + requiredSpace > this.PAGE_HEIGHT - this.MARGINS.bottom) {
+      doc.addPage();
+      this.addPageHeader(doc, doc.internal.pageSize.getWidth());
+      return this.MARGINS.top + 20;
+    }
+    return currentY;
+  }
+
+  private static addPageHeader(doc: jsPDF, pageWidth: number) {
+    // Simple header for subsequent pages
+    doc.setFillColor(
       this.COLORS.dark[0],
       this.COLORS.dark[1],
       this.COLORS.dark[2]
     );
+    doc.rect(0, 0, pageWidth, 15, "F");
 
-    const companyInfo = [
-      "This laboratory management system was developed by:",
-      "RAHIMI SOLUTION",
-      "Professional Software Engineering Company",
-      "",
-      "Email: rahimisolution@outlook.com",
-      "Facebook: Rahimi Solution",
-      "https://www.facebook.com/share/17MNceefpG/",
-    ];
-
-    companyInfo.forEach((line, index) => {
-      if (line === "RAHIMI SOLUTION") {
-        doc.setFontSize(8);
-        doc.setFont(this.FONTS.title, "bold");
-        doc.setTextColor(
-          this.COLORS.primary[0],
-          this.COLORS.primary[1],
-          this.COLORS.primary[2]
-        );
-      } else if (
-        line.startsWith("Email:") ||
-        line.startsWith("Facebook:") ||
-        line.startsWith("http")
-      ) {
-        doc.setFontSize(6);
-        doc.setFont(this.FONTS.body, "normal");
-        doc.setTextColor(
-          this.COLORS.info[0],
-          this.COLORS.info[1],
-          this.COLORS.info[2]
-        );
-      } else {
-        doc.setFontSize(6);
-        doc.setFont(this.FONTS.body, "normal");
-        doc.setTextColor(
-          this.COLORS.dark[0],
-          this.COLORS.dark[1],
-          this.COLORS.dark[2]
-        );
-      }
-
-      doc.text(line, pageWidth / 2, footerY - 10 + index * 3, {
-        align: "center",
-      });
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.setFont(this.FONTS.title, "bold");
+    doc.text("LABORATORY TEST REPORT - CONTINUED", pageWidth / 2, 10, {
+      align: "center",
     });
 
-    // Page number and contact
-    doc.setFontSize(7);
-    doc.setFont(this.FONTS.body, "normal");
-    doc.setTextColor(
-      this.COLORS.gray[0],
-      this.COLORS.gray[1],
-      this.COLORS.gray[2]
-    );
-    doc.text(
-      `Page 1 of 1 • Report ID: ${test.reportId || `LAB-${test.id}`}`,
-      pageWidth / 2,
-      footerY + 8,
-      {
-        align: "center",
-      }
-    );
-
-    doc.text(
-      `For questions contact: ${
-        test.laboratoryContact || "Lab Director"
-      } • Generated: ${new Date().toLocaleDateString()}`,
-      pageWidth / 2,
-      footerY + 12,
-      { align: "center" }
-    );
-  }
-
-  private static addPageBorder(
-    doc: jsPDF,
-    pageWidth: number,
-    pageHeight: number
-  ) {
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.5);
-    doc.rect(5, 5, pageWidth - 10, pageHeight - 10);
+    // Page number
+    const pageCount = doc.getNumberOfPages();
+    doc.setFontSize(8);
+    doc.text(`Page ${pageCount}`, pageWidth - 15, 10, { align: "right" });
   }
 
   private static addSectionHeader(
@@ -1131,7 +1124,24 @@ export class LabReportPDF {
     doc.line(x, y + 1, x + doc.getTextWidth(title), y + 1);
   }
 
-  // ===== ENHANCED HELPER METHODS =====
+  // ===== HELPER METHODS =====
+
+  private static ensureAscii(text: string): string {
+    // Replace common problematic characters with ASCII equivalents
+    return text
+      .replace(/[•·]/g, "-")
+      .replace(/[‘’]/g, "'")
+      .replace(/[“”]/g, '"')
+      .replace(/[—–]/g, "-")
+      .replace(/[éèêë]/g, "e")
+      .replace(/[áàâä]/g, "a")
+      .replace(/[íìîï]/g, "i")
+      .replace(/[óòôö]/g, "o")
+      .replace(/[úùûü]/g, "u")
+      .replace(/[ç]/g, "c")
+      .replace(/[ñ]/g, "n")
+      .replace(/[^\x00-\x7F]/g, "");
+  }
 
   private static generateUniqueId(): string {
     return Math.random().toString(36).substr(2, 9).toUpperCase();
@@ -1149,18 +1159,17 @@ export class LabReportPDF {
     ) {
       age--;
     }
-
     return age;
   }
 
   private static getFormattedStatus(status: string): string {
     const statusMap: { [key: string]: string } = {
-      pending: "[ ] PENDING",
-      completed: "[+] COMPLETED",
-      cancelled: "[-] CANCELLED",
-      in_progress: "[*] IN PROGRESS",
-      collected: "[O] COLLECTED",
-      verified: "[V] VERIFIED",
+      pending: "PENDING",
+      completed: "COMPLETED",
+      cancelled: "CANCELLED",
+      in_progress: "IN PROGRESS",
+      collected: "COLLECTED",
+      verified: "VERIFIED",
     };
     return statusMap[status] || status.toUpperCase();
   }
@@ -1380,9 +1389,7 @@ export class LabReportPDF {
         ["Lymphocytes", "2.2", "×10³/μL", "1.0-4.0", "", "NORMAL"],
         ["Monocytes", "0.5", "×10³/μL", "0.2-1.0", "", "NORMAL"],
         ["Eosinophils", "0.2", "×10³/μL", "0.0-0.5", "", "NORMAL"],
-        ["Basophils", "0.1", "×10³/μL", "0.0-0.2", "", "NORMAL"],
-        ["RDW-CV", "13.5", "%", "11.5-14.5", "", "NORMAL"],
-        ["MPV", "9.5", "fL", "7.5-11.5", "", "NORMAL"]
+        ["Basophils", "0.1", "×10³/μL", "0.0-0.2", "", "NORMAL"]
       );
     }
 
@@ -1398,14 +1405,7 @@ export class LabReportPDF {
         ["Chloride", "102", "mmol/L", "98-107", "", "NORMAL"],
         ["Carbon Dioxide", "25", "mmol/L", "22-30", "", "NORMAL"],
         ["Calcium", "9.5", "mg/dL", "8.5-10.5", "", "NORMAL"],
-        ["Total Protein", "7.2", "g/dL", "6.0-8.3", "", "NORMAL"],
-        ["Albumin", "4.5", "g/dL", "3.5-5.0", "", "NORMAL"],
-        ["Globulin", "2.7", "g/dL", "2.0-3.5", "", "NORMAL"],
-        ["A/G Ratio", "1.7", "", "1.0-2.0", "", "NORMAL"],
-        ["Total Bilirubin", "0.8", "mg/dL", "0.2-1.2", "", "NORMAL"],
-        ["ALT (SGPT)", "25", "U/L", "10-40", "", "NORMAL"],
-        ["AST (SGOT)", "22", "U/L", "15-40", "", "NORMAL"],
-        ["Alkaline Phosphatase", "85", "U/L", "40-120", "", "NORMAL"]
+        ["Total Protein", "7.2", "g/dL", "6.0-8.3", "", "NORMAL"]
       );
     }
 
@@ -1430,7 +1430,6 @@ export class LabReportPDF {
     const baseInterpretation = `This comprehensive laboratory report has been carefully reviewed and validated. `;
 
     let specificInterpretation = "";
-
     if (test.testType === "blood") {
       specificInterpretation = `The complete blood count reveals parameters within established reference ranges, indicating no evidence of anemia, infection, or hematological disorders. The differential white cell count shows appropriate distribution of leukocyte subsets. `;
     } else if (test.testType === "biochemistry") {
@@ -1447,33 +1446,17 @@ export class LabReportPDF {
   private static generateClinicalRecommendations(
     test: LaboratoryTestWithDetails
   ): string {
-    let recommendations = "";
-
     if (test.testType === "blood" && this.hasCriticalValues(test)) {
-      recommendations = `CRITICAL VALUE NOTIFICATION REQUIRED. Immediate physician review recommended. Consider repeat testing and clinical correlation. Emergency consultation may be indicated based on clinical presentation.`;
+      return `CRITICAL VALUE NOTIFICATION REQUIRED. Immediate physician review recommended. Consider repeat testing and clinical correlation. Emergency consultation may be indicated based on clinical presentation.`;
     } else if (test.testType === "biochemistry") {
-      recommendations = `Routine follow-up as clinically indicated. Maintain current management plan. Consider periodic monitoring based on individual risk factors and clinical context.`;
+      return `Routine follow-up as clinically indicated. Maintain current management plan. Consider periodic monitoring based on individual risk factors and clinical context.`;
     } else {
-      recommendations = `Continue standard clinical monitoring. No immediate intervention required based on these results. Follow established guidelines for preventive care and health maintenance.`;
+      return `Continue standard clinical monitoring. No immediate intervention required based on these results. Follow established guidelines for preventive care and health maintenance.`;
     }
-
-    return recommendations;
   }
 
   private static hasCriticalValues(test: LaboratoryTestWithDetails): boolean {
-    // Implementation would check actual results for critical values
-    return test.testType === "blood"; // Simplified for example
-  }
-
-  private static getLogoBase64(): string | null {
-    // Replace this with your actual logo.png base64 data
-    // Convert your public/logo.png to base64 using: https://base64.guru/converter/encode/image
-    // Then replace the null return below with your base64 string
-
-    // return "data:image/png;base64,YOUR_BASE64_STRING_HERE";
-
-    // For now, return null to use text-based fallback
-    return null;
+    return test.testType === "blood";
   }
 
   // ===== PUBLIC METHODS =====
@@ -1483,7 +1466,7 @@ export class LabReportPDF {
     const patientName = test.patient
       ? `${test.patient.lastName}_${test.patient.firstName}`
       : "patient";
-    const fileName = `Comprehensive_Lab_Report_${patientName}_${test.testName.replace(
+    const fileName = `Lab_Report_${patientName}_${test.testName.replace(
       /\s+/g,
       "_"
     )}_${new Date().getTime()}.pdf`;
@@ -1511,11 +1494,60 @@ export class LabReportPDF {
     test: LaboratoryTestWithDetails,
     email: string
   ): Promise<void> {
-    // Implementation for email functionality
     const doc = this.generateReport(test);
     const pdfBlob = doc.output("blob");
-
-    // This would typically integrate with your email service
     console.log(`Emailing report to ${email}`, pdfBlob);
+    // Implementation would integrate with your email service
+  }
+
+  static printReport(test: LaboratoryTestWithDetails): void {
+    const doc = this.generateReport(test);
+    const pdfBlob = doc.output("blob");
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+
+    const printWindow = window.open(pdfUrl, "_blank");
+    if (printWindow) {
+      printWindow.onload = () => {
+        printWindow.print();
+      };
+    }
   }
 }
+
+// React Hook for using the PDF generator
+export const useLabReportPDF = () => {
+  const generateReport = (test: LaboratoryTestWithDetails) => {
+    return LabReportPDF.generateReport(test);
+  };
+
+  const downloadReport = (test: LaboratoryTestWithDetails) => {
+    LabReportPDF.downloadReport(test);
+  };
+
+  const openReportInNewWindow = (test: LaboratoryTestWithDetails) => {
+    LabReportPDF.openReportInNewWindow(test);
+  };
+
+  const getReportAsBlob = (test: LaboratoryTestWithDetails) => {
+    return LabReportPDF.getReportAsBlob(test);
+  };
+
+  const getReportAsDataURL = (test: LaboratoryTestWithDetails) => {
+    return LabReportPDF.getReportAsDataURL(test);
+  };
+
+  const printReport = (test: LaboratoryTestWithDetails) => {
+    LabReportPDF.printReport(test);
+  };
+
+  return {
+    generateReport,
+    downloadReport,
+    openReportInNewWindow,
+    getReportAsBlob,
+    getReportAsDataURL,
+    printReport,
+  };
+};
+
+export default LabReportPDF;

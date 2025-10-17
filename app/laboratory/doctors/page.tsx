@@ -24,6 +24,13 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   Plus,
   Stethoscope,
   Phone,
@@ -34,6 +41,9 @@ import {
   User,
   IdCard,
   Smartphone,
+  Edit3,
+  Save,
+  X,
 } from "lucide-react";
 import { Doctor, CreateDoctorForm } from "@/types/types";
 import { gsap } from "gsap";
@@ -42,6 +52,14 @@ export default function LaboratoryDoctorsPage() {
   const { user, isLoaded } = useUser();
   const queryClient = useQueryClient();
   const [showAddDoctorForm, setShowAddDoctorForm] = useState(false);
+  const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
+  const [editForm, setEditForm] = useState<CreateDoctorForm>({
+    name: "",
+    specialization: "",
+    phoneNumber: "",
+    clinicName: "",
+    licenseNumber: "",
+  });
 
   // Refs for GSAP animations
   const heroRef = useRef(null);
@@ -53,7 +71,6 @@ export default function LaboratoryDoctorsPage() {
     name: "",
     specialization: "",
     phoneNumber: "",
-    email: "",
     clinicName: "",
     licenseNumber: "",
   });
@@ -86,10 +103,52 @@ export default function LaboratoryDoctorsPage() {
         name: "",
         specialization: "",
         phoneNumber: "",
-        email: "",
         clinicName: "",
         licenseNumber: "",
       });
+    },
+  });
+
+  // Edit doctor mutation
+  const editDoctorMutation = useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: CreateDoctorForm;
+    }) => {
+      console.log("Updating doctor:", id, data);
+
+      const response = await fetch(`/api/laboratory/doctors/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to update doctor: ${response.status} ${errorText}`
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["doctors"] });
+      setEditingDoctor(null);
+      setEditForm({
+        name: "",
+        specialization: "",
+        phoneNumber: "",
+        clinicName: "",
+        licenseNumber: "",
+      });
+    },
+    onError: (error: Error) => {
+      console.error("Error updating doctor:", error);
+      alert(`Failed to update doctor: ${error.message}`);
     },
   });
 
@@ -164,6 +223,26 @@ export default function LaboratoryDoctorsPage() {
     createDoctorMutation.mutate(newDoctor);
   };
 
+  const handleEditDoctor = (doctor: Doctor) => {
+    setEditingDoctor(doctor);
+    setEditForm({
+      name: doctor.name || "",
+      specialization: doctor.specialization || "",
+      phoneNumber: doctor.phoneNumber || "",
+      clinicName: doctor.clinicName || "",
+      licenseNumber: doctor.licenseNumber || "",
+    });
+  };
+
+  const handleUpdateDoctor = () => {
+    if (editingDoctor) {
+      editDoctorMutation.mutate({
+        id: editingDoctor.id,
+        data: editForm,
+      });
+    }
+  };
+
   const doctors = doctorsData?.doctors || [];
 
   // Mobile-friendly doctor card component
@@ -184,6 +263,14 @@ export default function LaboratoryDoctorsPage() {
             </Badge>
           )}
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-2"
+          onClick={() => handleEditDoctor(doctor)}
+        >
+          <Edit3 className="h-4 w-4" />
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-2 mb-3">
@@ -193,12 +280,7 @@ export default function LaboratoryDoctorsPage() {
             <span className="text-gray-700">{doctor.phoneNumber}</span>
           </div>
         )}
-        {doctor.email && (
-          <div className="flex items-center gap-2 text-sm">
-            <Mail className="h-4 w-4 text-gray-500" />
-            <span className="text-gray-700 truncate">{doctor.email}</span>
-          </div>
-        )}
+
         {doctor.clinicName && (
           <div className="flex items-center gap-2 text-sm">
             <Building className="h-4 w-4 text-gray-500" />
@@ -227,7 +309,7 @@ export default function LaboratoryDoctorsPage() {
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50">
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50 py-20">
       {/* Animated Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 floating-icon">
@@ -368,25 +450,7 @@ export default function LaboratoryDoctorsPage() {
                     className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="doctorEmail"
-                    className="text-sm font-semibold text-gray-700 flex items-center gap-2"
-                  >
-                    <Mail className="h-4 w-4" />
-                    Email Address
-                  </Label>
-                  <Input
-                    id="doctorEmail"
-                    type="email"
-                    value={newDoctor.email}
-                    onChange={(e) =>
-                      setNewDoctor({ ...newDoctor, email: e.target.value })
-                    }
-                    placeholder="doctor@example.com"
-                    className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
-                  />
-                </div>
+
                 <div className="space-y-2">
                   <Label
                     htmlFor="clinicName"
@@ -454,6 +518,145 @@ export default function LaboratoryDoctorsPage() {
           </Card>
         )}
 
+        {/* Edit Doctor Dialog */}
+        <Dialog
+          open={!!editingDoctor}
+          onOpenChange={() => setEditingDoctor(null)}
+        >
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit3 className="h-5 w-5" />
+                Edit Doctor - {editingDoctor?.name}
+              </DialogTitle>
+              <DialogDescription>
+                Update the doctor's information in the system.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="editName" className="text-sm font-semibold">
+                    Doctor Name *
+                  </Label>
+                  <Input
+                    id="editName"
+                    value={editForm.name}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, name: e.target.value })
+                    }
+                    placeholder="Dr. John Smith"
+                    required
+                    className="h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="editSpecialization"
+                    className="text-sm font-semibold"
+                  >
+                    Specialization
+                  </Label>
+                  <Input
+                    id="editSpecialization"
+                    value={editForm.specialization}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        specialization: e.target.value,
+                      })
+                    }
+                    placeholder="e.g., Cardiology, General Medicine"
+                    className="h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="editPhone" className="text-sm font-semibold">
+                    Phone Number
+                  </Label>
+                  <Input
+                    id="editPhone"
+                    type="tel"
+                    value={editForm.phoneNumber}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, phoneNumber: e.target.value })
+                    }
+                    placeholder="+1 (555) 123-4567"
+                    className="h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="editClinic" className="text-sm font-semibold">
+                    Clinic/Hospital Name
+                  </Label>
+                  <Input
+                    id="editClinic"
+                    value={editForm.clinicName}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, clinicName: e.target.value })
+                    }
+                    placeholder="City General Hospital"
+                    className="h-12"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label
+                    htmlFor="editLicense"
+                    className="text-sm font-semibold"
+                  >
+                    License Number
+                  </Label>
+                  <Input
+                    id="editLicense"
+                    value={editForm.licenseNumber}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        licenseNumber: e.target.value,
+                      })
+                    }
+                    placeholder="Medical license number"
+                    className="h-12"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={handleUpdateDoctor}
+                  disabled={editDoctorMutation.isPending}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                >
+                  {editDoctorMutation.isPending ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Update Doctor
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setEditingDoctor(null)}
+                  className="flex-1"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Doctors Table */}
         <Card
           className="shadow-2xl border-0 bg-gradient-to-br from-white to-purple-50"
@@ -518,6 +721,9 @@ export default function LaboratoryDoctorsPage() {
                         <TableHead className="font-bold text-gray-900 py-5 text-lg border-b-2 border-gray-200">
                           License Number
                         </TableHead>
+                        <TableHead className="font-bold text-gray-900 py-5 text-lg border-b-2 border-gray-200">
+                          Actions
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -558,14 +764,6 @@ export default function LaboratoryDoctorsPage() {
                                   </span>
                                 </div>
                               )}
-                              {doctor.email && (
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Mail className="h-4 w-4 text-gray-500" />
-                                  <span className="text-gray-700">
-                                    {doctor.email}
-                                  </span>
-                                </div>
-                              )}
                             </div>
                           </TableCell>
                           <TableCell className="py-4 border-b border-gray-100">
@@ -595,6 +793,16 @@ export default function LaboratoryDoctorsPage() {
                                 Not specified
                               </span>
                             )}
+                          </TableCell>
+                          <TableCell className="py-4 border-b border-gray-100">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={() => handleEditDoctor(doctor)}
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}

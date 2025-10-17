@@ -227,12 +227,12 @@ export default function LaboratoryDashboard() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency: "AFN",
     }).format(amount / 100); // Assuming amount is in cents
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50">
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50 pt-20">
       {/* Animated Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 floating-icon">
@@ -257,7 +257,7 @@ export default function LaboratoryDashboard() {
           <DollarSign className="h-8 w-8 text-green-200 opacity-60" />
         </div>
       </div>
-      <main className="flex-grow container mx-auto p-4 md:p-6 relative z-10">
+      <main className="flex-grow container mx-auto p-4 md:p-6 pt-28 relative z-10">
         {/* Hero Section */}
         <section className="mb-8" ref={heroRef}>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">

@@ -190,7 +190,7 @@ function MobileCommissionCard({
         <div className="space-y-1">
           <Label className="text-xs font-semibold text-gray-500">Amount</Label>
           <p className="text-gray-700 font-semibold">
-            ${parseFloat(record.amount).toLocaleString()}
+            AFN {parseFloat(record.amount).toLocaleString()}
           </p>
         </div>
         <div className="space-y-1">
@@ -583,7 +583,7 @@ export default function CommissionsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 pt-24">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
           <div>
@@ -777,7 +777,7 @@ export default function CommissionsPage() {
                             Total Income:
                           </div>
                           <div className="text-2xl font-bold text-green-600">
-                            ${incomeData.totalIncome?.toLocaleString() || 0}
+                            AFN {incomeData.totalIncome?.toLocaleString() || 0}
                           </div>
                         </div>
                         <div>
@@ -785,7 +785,8 @@ export default function CommissionsPage() {
                             Calculated Amount:
                           </div>
                           <div className="text-2xl font-bold text-blue-600">
-                            ${percentageData.calculatedAmount.toLocaleString()}
+                            AFN{" "}
+                            {percentageData.calculatedAmount.toLocaleString()}
                           </div>
                         </div>
                       </div>
@@ -910,7 +911,7 @@ export default function CommissionsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-gray-900">
-                    ${totalAmount.toLocaleString()}
+                    AFN {totalAmount.toLocaleString()}
                   </div>
                   <p className="text-xs text-gray-600">
                     Sum of all commissions
@@ -929,7 +930,7 @@ export default function CommissionsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-gray-900">
-                    ${monthlyAmount.toLocaleString()}
+                    AFN {monthlyAmount.toLocaleString()}
                   </div>
                   <p className="text-xs text-gray-600">
                     Commissions this month
@@ -1120,7 +1121,7 @@ export default function CommissionsPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-gray-900">20%</div>
+                  <div className="text-2xl font-bold text-gray-900">30%</div>
                   <p className="text-xs text-gray-600">
                     Standard commission rate
                   </p>
@@ -1137,7 +1138,7 @@ export default function CommissionsPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-gray-900">15%</div>
+                  <div className="text-2xl font-bold text-gray-900">30%</div>
                   <p className="text-xs text-gray-600">Laboratory staff rate</p>
                 </CardContent>
               </Card>

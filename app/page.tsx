@@ -35,13 +35,10 @@ import {
   Clock,
   Smartphone,
 } from "lucide-react";
-import {
-  PatientWithTests,
-  PatientTestReport,
-  LaboratoryTestWithDetails,
-} from "@/types/types";
-import { LabReportPDF } from "@/lib/pdf-generator";
+import { PatientWithTests, PatientTestReport } from "@/types/types";
+import { LabReportPDF, LaboratoryTestWithDetails } from "@/lib/pdf-generator";
 import { gsap } from "gsap";
+import SoftwareAd from "@/components/SoftwareAd";
 
 type VerificationStep = "phone" | "pin" | "verified";
 
@@ -54,6 +51,7 @@ export default function PatientPortal() {
   const [verificationStep, setVerificationStep] =
     useState<VerificationStep>("phone");
   const [isMobile, setIsMobile] = useState(false);
+  const [showAd, setShowAd] = useState(false); // Start with ad hidden
 
   // Refs for GSAP animations
   const heroRef = useRef(null);
@@ -161,12 +159,19 @@ export default function PatientPortal() {
           delay: 0.5,
         }
       );
+
+      // Show the ad after successful verification
+      const adTimer = setTimeout(() => {
+        setShowAd(true);
+      }, 1000); // Show ad 1 second after verification
+
+      return () => clearTimeout(adTimer);
     }
   }, [verificationStep, patient]);
 
   const handlePhoneSearch = async () => {
     if (!phoneNumber.trim()) {
-      setError("Please enter your phone number");
+      setError("لطفاً شماره تلفن خود را وارد کنید");
       return;
     }
 
@@ -188,7 +193,7 @@ export default function PatientPortal() {
 
       if (response.status === 404) {
         setError(
-          "No patient found with this phone number. Please check your number and try again."
+          "هیچ بیماری با این شماره تلفن یافت نشد. لطفاً شماره خود را بررسی کنید و دوباره امتحان کنید."
         );
         return;
       }
@@ -207,7 +212,7 @@ export default function PatientPortal() {
       }).call(() => setVerificationStep("pin"));
     } catch (err) {
       console.error("Search error:", err);
-      setError("An error occurred while searching. Please try again later.");
+      setError("خطایی در جستجو رخ داد. لطفاً بعداً دوباره امتحان کنید.");
 
       // Error shake animation
       gsap.to(cardRef.current, {
@@ -224,7 +229,7 @@ export default function PatientPortal() {
 
   const handlePinVerification = async () => {
     if (!patientPin.trim()) {
-      setError("Please enter your PIN");
+      setError("لطفاً پین خود را وارد کنید");
       return;
     }
 
@@ -246,12 +251,12 @@ export default function PatientPortal() {
       });
 
       if (response.status === 401) {
-        setError("Invalid PIN. Please try again.");
+        setError("پین نامعتبر است. لطفاً دوباره امتحان کنید.");
         return;
       }
 
       if (response.status === 404) {
-        setError("Patient not found.");
+        setError("بیمار یافت نشد.");
         return;
       }
 
@@ -271,12 +276,11 @@ export default function PatientPortal() {
       }).call(() => {
         setPatient(patientData);
         setVerificationStep("verified");
+        // Don't set showAd here - it's handled in the useEffect above
       });
     } catch (err) {
       console.error("Verification error:", err);
-      setError(
-        "An error occurred during verification. Please try again later."
-      );
+      setError("خطایی در فرآیند تایید رخ داد. لطفاً بعداً دوباره امتحان کنید.");
 
       // Error animation
       gsap.to(".pin-input", {
@@ -306,6 +310,7 @@ export default function PatientPortal() {
         setPatientPin("");
         setError("");
         setPatient(null);
+        setShowAd(false); // Hide ad when resetting
       })
       .to(phoneStepRef.current, {
         opacity: 1,
@@ -327,15 +332,22 @@ export default function PatientPortal() {
       ease: "power2.inOut",
     });
 
-    const reportData: LaboratoryTestWithDetails = {
-      ...test,
-      patientId: patient.id,
+    const reportData = {
+      id: test.id.toString(), // Convert number to string to match PDF generator type
+      testName: test.testName,
+      testType: test.testType,
+      testDate: test.testDate,
+      status: test.status,
+      reportId: test.reportId,
+      technician: test.technician,
+      notes: test.notes,
+      results: test.results,
       paymentStatus: "paid",
       createdBy: "system",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       patient: {
-        id: patient.id,
+        id: patient.id.toString(), // Convert number to string to match PDF generator type
         firstName: patient.firstName,
         lastName: patient.lastName,
         phoneNumber: patient.phoneNumber,
@@ -348,16 +360,16 @@ export default function PatientPortal() {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
-      laboratoryName: "Medical Laboratory Center",
-      laboratoryAddress: "123 Healthcare Drive, Medical City",
-      laboratoryContact: "+1 (555) 123-4567",
-    };
+      laboratoryName: "مرکز آزمایشگاه پزشکی",
+      laboratoryAddress: "خیابان بهداشت ۱۲۳، شهر پزشکی",
+      laboratoryContact: "+۹۳ (۵۵۵) ۱۲۳-۴۵۶۷",
+    } as LaboratoryTestWithDetails;
 
     LabReportPDF.downloadReport(reportData);
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return new Date(dateString).toLocaleDateString("fa-AF", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -370,7 +382,7 @@ export default function PatientPortal() {
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div className="space-y-1">
           <Label className="text-xs font-semibold text-gray-500">
-            Test Name
+            نام آزمایش
           </Label>
           <div className="flex items-center gap-2">
             <div className="bg-blue-100 p-1.5 rounded-lg">
@@ -382,7 +394,7 @@ export default function PatientPortal() {
           </div>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs font-semibold text-gray-500">Type</Label>
+          <Label className="text-xs font-semibold text-gray-500">نوع</Label>
           <Badge
             variant="outline"
             className="capitalize text-xs px-2 py-1 border bg-blue-50 text-blue-700 border-blue-200"
@@ -394,13 +406,13 @@ export default function PatientPortal() {
 
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div className="space-y-1">
-          <Label className="text-xs font-semibold text-gray-500">Date</Label>
+          <Label className="text-xs font-semibold text-gray-500">تاریخ</Label>
           <p className="text-gray-700 font-medium text-sm">
             {formatDate(test.testDate)}
           </p>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs font-semibold text-gray-500">Status</Label>
+          <Label className="text-xs font-semibold text-gray-500">وضعیت</Label>
           <Badge
             variant={
               test.status === "completed"
@@ -423,29 +435,37 @@ export default function PatientPortal() {
       </div>
 
       <div className="space-y-1 mb-3">
-        <Label className="text-xs font-semibold text-gray-500">Report ID</Label>
+        <Label className="text-xs font-semibold text-gray-500">
+          شناسه گزارش
+        </Label>
         <p className="text-gray-600 font-mono text-xs">{test.reportId}</p>
       </div>
 
       <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-        <Label className="text-xs font-semibold text-gray-500">
-          Download Report
-        </Label>
         <Button
           variant="outline"
           size="sm"
           onClick={() => handleDownloadReport(test)}
           className={`download-btn-${test.id} hover:bg-green-50 hover:text-green-600 hover:border-green-300 border font-semibold rounded-lg px-3 py-2 text-xs`}
         >
-          <Download className="h-3 w-3 mr-1" />
           PDF
+          <Download className="h-3 w-3 ml-1" />
         </Button>
+        <Label className="text-xs font-semibold text-gray-500">
+          دانلود گزارش
+        </Label>
       </div>
     </div>
   );
 
   return (
-    <div className="flex pt-8 min-h-screen flex-col bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50">
+    <div
+      className="flex pt-8 min-h-screen flex-col bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50"
+      dir="rtl"
+    >
+      {/* Software Ad Component - Only show after PIN verification */}
+      <SoftwareAd show={showAd} onClose={() => setShowAd(false)} />
+
       {/* Animated Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 floating-element">
@@ -471,7 +491,7 @@ export default function PatientPortal() {
         </div>
       </div>
 
-      <main className="flex-grow container mx-auto px-4 py-8 relative z-10">
+      <main className="flex-grow container mx-auto px-4 py-8 pt-24 relative z-10">
         {/* Hero Section */}
         <section className="text-center mb-12" ref={heroRef}>
           <div className="max-w-4xl mx-auto">
@@ -482,30 +502,30 @@ export default function PatientPortal() {
                 </div>
               </div>
             </div>
-            <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl mb-4 bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent">
-              Secure Patient Portal
+            <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl mb-4 bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent leading-tight h-auto">
+              پورتال امن بیماران
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto leading-relaxed">
-              Access your medical test results and health records with our
-              encrypted two-step verification system
+              نتایج آزمایش‌های پزشکی و سوابق بهداشتی خود را با سیستم تایید دو
+              مرحله‌ای رمزگذاری شده ما مشاهده کنید
             </p>
 
             {/* Stats Bar */}
             <div className="grid grid-cols-3 gap-6 max-w-2xl mx-auto mt-12">
               <div className="text-center p-4 bg-white/70 backdrop-blur-sm rounded-xl shadow-sm border border-blue-50">
                 <Clock className="h-8 w-8 text-blue-500 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-gray-800">24/7</div>
-                <div className="text-sm text-gray-600">Access</div>
+                <div className="text-2xl font-bold text-gray-800">۲۴/۷</div>
+                <div className="text-sm text-gray-600">دسترسی</div>
               </div>
               <div className="text-center p-4 bg-white/70 backdrop-blur-sm rounded-xl shadow-sm border border-blue-50">
                 <Shield className="h-8 w-8 text-green-500 mx-auto mb-2" />
                 <div className="text-2xl font-bold text-gray-800">HIPAA</div>
-                <div className="text-sm text-gray-600">Compliant</div>
+                <div className="text-sm text-gray-600">سازگار</div>
               </div>
               <div className="text-center p-4 bg-white/70 backdrop-blur-sm rounded-xl shadow-sm border border-blue-50">
                 <FileText className="h-8 w-8 text-purple-500 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-gray-800">Secure</div>
-                <div className="text-sm text-gray-600">Records</div>
+                <div className="text-2xl font-bold text-gray-800">امن</div>
+                <div className="text-sm text-gray-600">سوابق</div>
               </div>
             </div>
           </div>
@@ -521,46 +541,24 @@ export default function PatientPortal() {
               <div className="pulse-security">
                 <Shield className="h-7 w-7" />
               </div>
-              Secure Access Verification
+              تایید دسترسی امن
             </CardTitle>
             <CardDescription className="text-blue-100 text-lg">
               {verificationStep === "phone" &&
-                "Enter your registered phone number to begin"}
+                "شماره تلفن ثبت شده خود را وارد کنید"}
               {verificationStep === "pin" &&
-                "Enter your unique Patient PIN for verification"}
+                "پین منحصر به فرد بیمار خود را برای تایید وارد کنید"}
               {verificationStep === "verified" &&
-                "Access granted to your medical records"}
+                "دسترسی به سوابق پزشکی شما مجاز شد"}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-8">
             {/* Step 1: Phone Number */}
             {verificationStep === "phone" && (
               <div
-                className="flex flex-col sm:flex-row gap-6 max-w-2xl"
+                className="flex flex-col sm:flex-row-reverse gap-6 max-w-2xl"
                 ref={phoneStepRef}
               >
-                <div className="flex-1">
-                  <Label
-                    htmlFor="phone"
-                    className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2"
-                  >
-                    <User className="h-4 w-4" />
-                    Phone Number
-                  </Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="Enter your registered phone number"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handlePhoneSearch()}
-                    className="h-14 text-lg border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl"
-                  />
-                  <p className="text-sm text-gray-500 mt-2 flex items-center gap-1">
-                    <Shield className="h-3 w-3" />
-                    Your information is protected by end-to-end encryption
-                  </p>
-                </div>
                 <div className="flex items-end lg:mb-7">
                   <Button
                     onClick={handlePhoneSearch}
@@ -569,16 +567,38 @@ export default function PatientPortal() {
                   >
                     {isSearching ? (
                       <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                        Verifying...
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white ml-3"></div>
+                        در حال تایید...
                       </>
                     ) : (
                       <>
-                        <Search className="h-5 w-5 mr-3" />
-                        Verify Phone
+                        <Search className="h-5 w-5 ml-3" />
+                        تایید تلفن
                       </>
                     )}
                   </Button>
+                </div>
+                <div className="flex-1">
+                  <Label
+                    htmlFor="phone"
+                    className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2"
+                  >
+                    شماره تلفن
+                    <User className="h-4 w-4" />
+                  </Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="شماره تلفن ثبت شده خود را وارد کنید"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handlePhoneSearch()}
+                    className="h-14 text-lg border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl"
+                  />
+                  <p className="text-sm text-gray-500 mt-2 flex items-center gap-1">
+                    <Shield className="h-3 w-3" />
+                    اطلاعات شما با رمزگذاری سرتاسری محافظت می‌شود
+                  </p>
                 </div>
               </div>
             )}
@@ -591,29 +611,45 @@ export default function PatientPortal() {
                     <Shield className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-yellow-800 font-semibold mb-1">
-                        Security Step Required
+                        مرحله امنیتی لازم است
                       </p>
                       <p className="text-yellow-700 text-sm">
-                        Please enter the 6-digit PIN provided when your profile
-                        was created. This ensures only you can access your
-                        medical records.
+                        لطفاً پین ۶ رقمی که در زمان ایجاد پروفایل شما ارائه شده
+                        را وارد کنید. این کار اطمینان می‌دهد که فقط شما
+                        می‌توانید به سوابق پزشکی خود دسترسی داشته باشید.
                       </p>
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-6">
+                <div className="flex flex-col sm:flex-row-reverse gap-6">
+                  <div className="flex items-end gap-3">
+                    <Button
+                      onClick={handlePinVerification}
+                      disabled={isSearching}
+                      className="verify-pin-btn h-14 px-10 text-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      {isSearching ? "در حال تایید..." : "تایید پین"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleReset}
+                      className="h-14 px-8 border-2 rounded-xl hover:bg-gray-50 transition-colors"
+                    >
+                      بازگشت
+                    </Button>
+                  </div>
                   <div className="flex-1">
                     <Label
                       htmlFor="pin"
                       className="text-sm font-semibold text-gray-700 mb-3 block flex items-center gap-2"
                     >
+                      پین بیمار
                       <Shield className="h-4 w-4" />
-                      Patient PIN
                     </Label>
                     <Input
                       id="pin"
                       type="password"
-                      placeholder="Enter your 6-digit PIN"
+                      placeholder="پین ۶ رقمی خود را وارد کنید"
                       value={patientPin}
                       onChange={(e) => setPatientPin(e.target.value)}
                       onKeyPress={(e) =>
@@ -622,22 +658,6 @@ export default function PatientPortal() {
                       className="pin-input h-14 text-lg border-2 border-gray-200 focus:border-green-500 transition-colors rounded-xl text-center tracking-widest font-mono"
                       maxLength={6}
                     />
-                  </div>
-                  <div className="flex items-end gap-3">
-                    <Button
-                      onClick={handlePinVerification}
-                      disabled={isSearching}
-                      className="verify-pin-btn h-14 px-10 text-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                    >
-                      {isSearching ? "Verifying..." : "Verify PIN"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleReset}
-                      className="h-14 px-8 border-2 rounded-xl hover:bg-gray-50 transition-colors"
-                    >
-                      Back
-                    </Button>
                   </div>
                 </div>
               </div>
@@ -662,11 +682,10 @@ export default function PatientPortal() {
                   <Shield className="h-10 w-10 text-green-600" />
                 </div>
                 <h3 className="text-2xl font-bold text-green-800 mb-3">
-                  Identity Verified Successfully
+                  هویت با موفقیت تایید شد
                 </h3>
                 <p className="text-green-600 text-lg max-w-md mx-auto">
-                  You now have secure access to your medical records and test
-                  results.
+                  اکنون شما به سوابق پزشکی و نتایج آزمایش خود دسترسی امن دارید.
                 </p>
               </div>
             )}
@@ -684,7 +703,7 @@ export default function PatientPortal() {
               <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-xl py-6">
                 <CardTitle className="flex items-center gap-3 text-2xl">
                   <User className="h-7 w-7" />
-                  Patient Information
+                  اطلاعات بیمار
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 md:p-8">
@@ -692,7 +711,7 @@ export default function PatientPortal() {
                   <div className="space-y-2 text-center p-4 md:p-5 bg-white rounded-xl shadow-sm border border-green-100">
                     <Label className="text-xs md:text-sm font-semibold text-gray-500 flex items-center justify-center gap-2">
                       <User className="h-3 w-3 md:h-4 md:w-4" />
-                      Full Name
+                      نام کامل
                     </Label>
                     <p className="text-lg md:text-xl font-bold text-gray-900">
                       {patient.firstName} {patient.lastName}
@@ -701,7 +720,7 @@ export default function PatientPortal() {
                   <div className="space-y-2 text-center p-4 md:p-5 bg-white rounded-xl shadow-sm border border-blue-100">
                     <Label className="text-xs md:text-sm font-semibold text-gray-500 flex items-center justify-center gap-2">
                       <Search className="h-3 w-3 md:h-4 md:w-4" />
-                      Phone Number
+                      شماره تلفن
                     </Label>
                     <p className="text-lg md:text-xl font-bold text-gray-900">
                       {patient.phoneNumber}
@@ -710,21 +729,21 @@ export default function PatientPortal() {
                   <div className="space-y-2 text-center p-4 md:p-5 bg-white rounded-xl shadow-sm border border-purple-100">
                     <Label className="text-xs md:text-sm font-semibold text-gray-500 flex items-center justify-center gap-2">
                       <Calendar className="h-3 w-3 md:h-4 md:w-4" />
-                      Date of Birth
+                      تاریخ تولد
                     </Label>
                     <p className="text-lg md:text-xl font-bold text-gray-900">
                       {patient.dateOfBirth
                         ? formatDate(patient.dateOfBirth)
-                        : "Not provided"}
+                        : "ارائه نشده"}
                     </p>
                   </div>
                   <div className="space-y-2 text-center p-4 md:p-5 bg-white rounded-xl shadow-sm border border-pink-100">
                     <Label className="text-xs md:text-sm font-semibold text-gray-500 flex items-center justify-center gap-2">
                       <Activity className="h-3 w-3 md:h-4 md:w-4" />
-                      Gender
+                      جنسیت
                     </Label>
                     <p className="text-lg md:text-xl font-bold text-gray-900">
-                      {patient.gender || "Not provided"}
+                      {patient.gender || "ارائه نشده"}
                     </p>
                   </div>
                 </div>
@@ -739,11 +758,11 @@ export default function PatientPortal() {
               <CardHeader className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-t-xl py-6">
                 <CardTitle className="flex items-center gap-3 text-2xl">
                   <FileText className="h-7 w-7" />
-                  Laboratory Test Reports
+                  گزارش‌های آزمایشگاهی
                 </CardTitle>
                 <CardDescription className="text-purple-100 text-lg">
-                  Your complete test history. Click the download button to save
-                  reports as PDF.
+                  تاریخچه کامل آزمایش‌های شما. برای ذخیره گزارش‌ها به صورت PDF
+                  روی دکمه دانلود کلیک کنید.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4 md:p-8">
@@ -764,22 +783,22 @@ export default function PatientPortal() {
                         <TableHeader>
                           <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100 hover:bg-gray-100">
                             <TableHead className="font-bold text-gray-900 py-5 text-lg border-b-2 border-gray-200">
-                              Test Name
+                              نام آزمایش
                             </TableHead>
                             <TableHead className="font-bold text-gray-900 py-5 text-lg border-b-2 border-gray-200">
-                              Type
+                              نوع
                             </TableHead>
                             <TableHead className="font-bold text-gray-900 py-5 text-lg border-b-2 border-gray-200">
-                              Date
+                              تاریخ
                             </TableHead>
                             <TableHead className="font-bold text-gray-900 py-5 text-lg border-b-2 border-gray-200">
-                              Status
+                              وضعیت
                             </TableHead>
                             <TableHead className="font-bold text-gray-900 py-5 text-lg border-b-2 border-gray-200">
-                              Report ID
+                              شناسه گزارش
                             </TableHead>
                             <TableHead className="font-bold text-gray-900 py-5 text-lg border-b-2 border-gray-200 text-right">
-                              Download
+                              دانلود
                             </TableHead>
                           </TableRow>
                         </TableHeader>
@@ -840,8 +859,8 @@ export default function PatientPortal() {
                                   onClick={() => handleDownloadReport(test)}
                                   className={`download-btn-${test.id} hover:bg-green-50 hover:text-green-600 hover:border-green-300 border-2 font-semibold rounded-lg px-4 py-2 transition-all duration-200`}
                                 >
-                                  <Download className="h-4 w-4 mr-2" />
-                                  PDF Report
+                                  گزارش PDF
+                                  <Download className="h-4 w-4 ml-2" />
                                 </Button>
                               </TableCell>
                             </TableRow>
@@ -855,7 +874,7 @@ export default function PatientPortal() {
                       <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
                         <Smartphone className="h-4 w-4 text-blue-600" />
                         <p className="text-sm text-blue-700">
-                          Scroll horizontally to view all information
+                          برای دیدن تمام اطلاعات به صورت افقی اسکرول کنید
                         </p>
                       </div>
                     </div>
@@ -864,10 +883,10 @@ export default function PatientPortal() {
                   <div className="text-center py-16">
                     <FileText className="h-20 w-20 text-gray-300 mx-auto mb-6" />
                     <p className="text-2xl text-gray-500 mb-3 font-semibold">
-                      No test reports found
+                      هیچ گزارش آزمایشی یافت نشد
                     </p>
                     <p className="text-gray-400 text-lg">
-                      You don't have any laboratory test reports yet.
+                      شما هنوز هیچ گزارش آزمایشگاهی ندارید.
                     </p>
                   </div>
                 )}
@@ -883,10 +902,10 @@ export default function PatientPortal() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-700 font-semibold">
-                      <strong>Security Notice:</strong> For your protection,
-                      this session will automatically expire in 15 minutes.
-                      Please save any important reports before closing this
-                      window. Your privacy is our priority.
+                      <strong>اخطار امنیتی:</strong> برای محافظت از شما، این
+                      جلسه به طور خودکار پس از ۱۵ دقیقه منقضی خواهد شد. لطفاً
+                      قبل از بستن پنجره، گزارش‌های مهم خود را ذخیره کنید. حفظ
+                      حریم خصوصی شما اولویت ماست.
                     </p>
                   </div>
                 </div>

@@ -13,7 +13,12 @@ const nextConfig = {
   },
   // Images configuration for better compatibility
   images: {
-    domains: ["img.clerk.com"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "img.clerk.com",
+      },
+    ],
   },
 };
 

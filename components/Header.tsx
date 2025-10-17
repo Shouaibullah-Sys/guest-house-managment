@@ -1,7 +1,7 @@
 // components/Header.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
 import { SignInButton } from "@clerk/nextjs";
 import Link from "next/link";
@@ -20,6 +20,8 @@ import {
 const Header = () => {
   const { user } = useUser();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
   const userRole = user?.publicMetadata?.role as string;
 
   // Navigation items with icons and role-based permissions
@@ -66,8 +68,60 @@ const Header = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
+  // Handle scroll behavior for header visibility
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      // Always show header when mobile menu is open
+      if (isMobileMenuOpen) {
+        setIsHeaderVisible(true);
+        setLastScrollY(currentScrollY);
+        return;
+      }
+
+      // Show header when scrolling up or at the top
+      if (currentScrollY < lastScrollY || currentScrollY < 100) {
+        setIsHeaderVisible(true);
+      }
+      // Hide header when scrolling down (but not on mobile or when mobile menu is open)
+      else if (
+        currentScrollY > lastScrollY &&
+        currentScrollY > 100 &&
+        !isMobileMenuOpen &&
+        window.innerWidth >= 768
+      ) {
+        setIsHeaderVisible(false);
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    // Throttle scroll events for better performance
+    let ticking = false;
+    const throttledScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          handleScroll();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener("scroll", throttledScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", throttledScroll);
+    };
+  }, [lastScrollY, isMobileMenuOpen]);
+
   return (
-    <header className="bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-2xl border-b-4 border-blue-400">
+    <header
+      className={`bg-gradient-to-r from-blue-600 to-teal-600 text-white shadow-2xl border-b-4 border-blue-400 fixed top-0 left-0 right-0 z-50 transition-transform duration-300 ease-in-out ${
+        isHeaderVisible ? "translate-y-0" : "-translate-y-full"
+      }`}
+    >
       <div className="container mx-auto px-4">
         <div className="flex h-20 items-center justify-between">
           {/* Logo */}

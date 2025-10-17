@@ -38,7 +38,6 @@ export const patients = pgTable("patients", {
   lastName: text("last_name").notNull(),
   phoneNumber: text("phone_number").notNull().unique(),
   patientPin: text("patient_pin"), // Add this line - stores the unique PIN
-  email: text("email"),
   dateOfBirth: text("date_of_birth"),
   gender: text("gender"),
   address: text("address"),
@@ -54,7 +53,6 @@ export const doctors = pgTable("doctors", {
   name: text("name").notNull(),
   specialization: text("specialization"),
   phoneNumber: text("phone_number"),
-  email: text("email"),
   clinicName: text("clinic_name"),
   licenseNumber: text("license_number"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),

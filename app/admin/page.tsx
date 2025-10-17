@@ -621,7 +621,7 @@ export default function AdminDashboard() {
               transaction.amount >= 0 ? "text-green-600" : "text-red-600"
             }`}
           >
-            {transaction.amount >= 0 ? "+" : ""}$
+            {transaction.amount >= 0 ? "+" : ""}AFN
             {Math.abs(transaction.amount).toLocaleString()}
           </span>
         </div>
@@ -663,7 +663,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 pt-24">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
           <div>
@@ -930,7 +930,7 @@ export default function AdminDashboard() {
                           cy="50%"
                           labelLine={false}
                           label={({ department, netProfit }) =>
-                            `${department}: $${netProfit}`
+                            `${department}: AFN ${netProfit}`
                           }
                           outerRadius={80}
                           fill="#8884d8"
@@ -987,13 +987,13 @@ export default function AdminDashboard() {
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Revenue:</span>
                           <span className="font-semibold">
-                            ${dept.revenue.toLocaleString()}
+                            AFN {dept.revenue.toLocaleString()}
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Expenses:</span>
                           <span className="font-semibold">
-                            ${dept.expenses.toLocaleString()}
+                            AFN {dept.expenses.toLocaleString()}
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
@@ -1005,7 +1005,7 @@ export default function AdminDashboard() {
                                 : "text-red-600"
                             }`}
                           >
-                            ${dept.netProfit.toLocaleString()}
+                            AFN {dept.netProfit.toLocaleString()}
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
@@ -1159,7 +1159,7 @@ export default function AdminDashboard() {
                                 : "text-red-600 font-semibold"
                             }
                           >
-                            {transaction.amount >= 0 ? "+" : ""}$
+                            {transaction.amount >= 0 ? "+" : ""}AFN
                             {Math.abs(transaction.amount).toLocaleString()}
                           </TableCell>
                           <TableCell>
@@ -1245,7 +1245,7 @@ function StatCard({
           <div>
             <p className="text-sm font-medium text-gray-600">{title}</p>
             <p className="text-2xl font-bold text-gray-900 mt-1">
-              ${value.toLocaleString()}
+              AFN {value.toLocaleString()}
             </p>
             <div
               className={`flex items-center mt-2 text-sm ${

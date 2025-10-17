@@ -24,7 +24,6 @@ export async function GET(req: NextRequest) {
         firstName: patients.firstName,
         lastName: patients.lastName,
         phoneNumber: patients.phoneNumber,
-        email: patients.email,
         dateOfBirth: patients.dateOfBirth,
         gender: patients.gender,
         address: patients.address,

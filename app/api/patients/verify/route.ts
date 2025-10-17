@@ -24,7 +24,6 @@ export async function POST(req: NextRequest) {
         lastName: patients.lastName,
         phoneNumber: patients.phoneNumber,
         patientPin: patients.patientPin,
-        email: patients.email,
         dateOfBirth: patients.dateOfBirth,
         gender: patients.gender,
         address: patients.address,
