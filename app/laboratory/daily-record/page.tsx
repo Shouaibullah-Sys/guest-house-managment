@@ -5,7 +5,6 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
-import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -458,9 +457,6 @@ export default function LaboratoryDailyRecord() {
           <Stethoscope className="h-8 w-8 text-green-200 opacity-60" />
         </div>
       </div>
-
-      <Header />
-
       <main className="flex-grow container mx-auto p-4 md:p-6 relative z-10">
         {/* Hero Section */}
         <section className="mb-8">
@@ -2128,28 +2124,6 @@ export default function LaboratoryDailyRecord() {
           </CardContent>
         </Card>
       </main>
-
-      <footer className="bg-gradient-to-r from-gray-800 to-blue-900 text-white py-8 mt-8">
-        <div className="container mx-auto px-4 text-center">
-          <div className="flex justify-center items-center gap-4 mb-4">
-            <div className="bg-white/10 p-2 rounded-full">
-              <Microscope className="h-5 w-5" />
-            </div>
-            <div className="bg-white/10 p-2 rounded-full">
-              <Stethoscope className="h-5 w-5" />
-            </div>
-            <div className="bg-white/10 p-2 rounded-full">
-              <Activity className="h-5 w-5" />
-            </div>
-          </div>
-          <p className="text-sm text-gray-300 mb-2">
-            © 2024 Laboratory Management System • Professional Grade Diagnostics
-          </p>
-          <p className="text-xs text-gray-400 max-w-2xl mx-auto leading-relaxed">
-            Certified ISO 15189:2012 • HIPAA Compliant • CLIA Certified
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }

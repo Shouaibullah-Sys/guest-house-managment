@@ -46,6 +46,7 @@ import {
   BarChart3,
   ChevronDown,
   ChartBar,
+  Calculator,
 } from "lucide-react";
 import {
   Table,
@@ -449,14 +450,14 @@ export default function AdminDashboard() {
     const transactions: RecentTransaction[] = [];
 
     // Add test transactions
-    tests.slice(0, 10).forEach((test) => {
+    tests.slice(0, 10).forEach((test, index) => {
       const doctor = doctors.find((d) => d.id === test.doctorId);
       transactions.push({
-        id: test.id,
+        id: test.id || index, // Fallback to index if id is missing
         type: "test",
-        description: test.testName,
+        description: test.testName || "Unnamed Test",
         amount: test.amountPaid || 0,
-        date: test.testDate || test.createdAt,
+        date: test.testDate || test.createdAt || new Date().toISOString(),
         status: mapTestStatus(test.status),
         patientName: test.patient
           ? `${test.patient.firstName} ${test.patient.lastName}`
@@ -466,17 +467,18 @@ export default function AdminDashboard() {
     });
 
     // Add expense transactions
-    expenses.slice(0, 10).forEach((expense) => {
+    expenses.slice(0, 10).forEach((expense, index) => {
       const type =
         expense.expenseType === "doctor_percentage" ? "commission" : "expense";
       const doctor = doctors.find((d) => d.id === expense.relatedDoctorId);
 
       transactions.push({
-        id: expense.id,
+        id: expense.id || Date.now() + index, // Fallback to timestamp + index if id is missing
         type,
-        description: expense.description,
+        description: expense.description || "Unnamed Expense",
         amount: -(expense.amount || 0),
-        date: expense.expenseDate || expense.createdAt,
+        date:
+          expense.expenseDate || expense.createdAt || new Date().toISOString(),
         status: mapExpenseStatus(expense.status),
         doctorName: doctor?.name,
       });
@@ -685,7 +687,7 @@ export default function AdminDashboard() {
               </a>
             </Button>
             <Button variant="outline" asChild>
-              <a href="/admin/coversation">
+              <a href="/admin/conversation">
                 <ChartBar className="h-4 w-4 mr-2" />
                 Chat wit Patient
               </a>
@@ -701,6 +703,12 @@ export default function AdminDashboard() {
             <Button variant="outline" className="flex items-center gap-2">
               <Download className="h-4 w-4" />
               Export Report
+            </Button>
+            <Button variant="outline" asChild>
+              <a href="/admin/commissions">
+                <Calculator className="h-4 w-4 mr-2" />
+                Commissions
+              </a>
             </Button>
           </div>
         </div>

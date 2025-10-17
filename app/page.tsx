@@ -895,30 +895,6 @@ export default function PatientPortal() {
           </div>
         )}
       </main>
-
-      <footer className="bg-gradient-to-r from-gray-800 to-blue-900 text-white py-12 mt-16 relative z-10">
-        <div className="container mx-auto px-4 text-center">
-          <div className="flex justify-center items-center gap-4 mb-4">
-            <div className="bg-white/10 p-3 rounded-full">
-              <Stethoscope className="h-6 w-6" />
-            </div>
-            <div className="bg-white/10 p-3 rounded-full">
-              <Heart className="h-6 w-6" />
-            </div>
-            <div className="bg-white/10 p-3 rounded-full">
-              <Shield className="h-6 w-6" />
-            </div>
-          </div>
-          <p className="text-lg text-gray-300 mb-2">
-            © 2024 Medical Laboratory System. All rights reserved.
-          </p>
-          <p className="text-sm text-gray-400 max-w-2xl mx-auto leading-relaxed">
-            Your health information is protected by advanced encryption and
-            two-step verification. We comply with all HIPAA regulations to
-            ensure your medical data remains confidential and secure.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }

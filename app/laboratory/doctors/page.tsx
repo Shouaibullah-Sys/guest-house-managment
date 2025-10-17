@@ -624,28 +624,6 @@ export default function LaboratoryDoctorsPage() {
           </CardContent>
         </Card>
       </main>
-
-      <footer className="bg-gradient-to-r from-gray-800 to-blue-900 text-white py-8 mt-8">
-        <div className="container mx-auto px-4 text-center">
-          <div className="flex justify-center items-center gap-4 mb-4">
-            <div className="bg-white/10 p-2 rounded-full">
-              <Stethoscope className="h-5 w-5" />
-            </div>
-            <div className="bg-white/10 p-2 rounded-full">
-              <UserCog className="h-5 w-5" />
-            </div>
-            <div className="bg-white/10 p-2 rounded-full">
-              <Shield className="h-5 w-5" />
-            </div>
-          </div>
-          <p className="text-sm text-gray-300 mb-2">
-            © 2024 Laboratory Management System • Professional Grade Diagnostics
-          </p>
-          <p className="text-xs text-gray-400 max-w-2xl mx-auto leading-relaxed">
-            Certified ISO 15189:2012 • HIPAA Compliant • CLIA Certified
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }

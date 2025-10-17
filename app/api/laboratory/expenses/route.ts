@@ -6,6 +6,7 @@ import { laboratoryExpenses } from "@/db/schema";
 import { desc, eq, and, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
+// app/api/laboratory/expenses/route.ts (updated schema)
 const createExpenseSchema = z.object({
   expenseType: z.enum([
     "regular_payment",
@@ -17,7 +18,7 @@ const createExpenseSchema = z.object({
   expenseDate: z.string().optional(),
   relatedTestId: z.number().optional(),
   relatedDoctorId: z.number().optional(),
-  percentage: z.number().min(0).max(100).optional(),
+  percentage: z.number().optional(),
   isRecurring: z.boolean().optional(),
   recurringFrequency: z.enum(["monthly", "weekly", "daily"]).optional(),
   status: z.enum(["active", "inactive", "paid"]).optional(),

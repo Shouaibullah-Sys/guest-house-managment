@@ -5,9 +5,9 @@ import { useState } from "react";
 import { SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
 import { SignInButton } from "@clerk/nextjs";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
-  Stethoscope,
   Menu,
   X,
   Home,
@@ -32,7 +32,7 @@ const Header = () => {
     },
     {
       href: "/qa",
-      label: "Conversation",
+      label: "Q&A",
       icon: MessageSquare,
       allowedRoles: ["all"], // Everyone can see Q&A when logged in
     },
@@ -75,8 +75,16 @@ const Header = () => {
             href="/"
             className="flex items-center space-x-3 text-2xl font-bold hover:text-blue-100 transition-colors duration-300"
           >
-            <div className="bg-white/20 p-2 rounded-xl">
-              <Stethoscope className="h-6 w-6" />
+            <div className="">
+              <div className="relative w-12 h-12">
+                <Image
+                  src="/logo.png"
+                  alt="Dr. Sebghat Clinic Logo"
+                  width={40}
+                  height={40}
+                  className="object-contain"
+                />
+              </div>
             </div>
             <span className="bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
               Dr. Sebghat Clinic
@@ -268,14 +276,6 @@ const Header = () => {
             </span>
           </div>
         )}
-        {/* {userRole === "admin" && (
-          <div className="bg-purple-500/80 text-white py-2 px-4 text-sm text-center">
-            <span className="inline-flex items-center">
-              <Settings className="h-3 w-3 mr-2" />
-              Administrator: Full system access
-            </span>
-          </div>
-        )} */}
       </SignedIn>
     </header>
   );

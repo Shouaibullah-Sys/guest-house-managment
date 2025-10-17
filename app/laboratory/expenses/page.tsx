@@ -15,13 +15,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  ArrowUpDown,
-  ChevronDown,
-  MoreHorizontal,
-  Plus,
-  Calculator,
-} from "lucide-react";
+import { ArrowUpDown, ChevronDown, MoreHorizontal, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -70,15 +64,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Doctor, CreateExpenseForm } from "@/types/types";
+
 export type Expense = {
   id: number;
-  expenseType: "regular_payment" | "doctor_percentage" | "laboratory_salary";
+  expenseType: "regular_payment";
   description: string;
   amount: number;
   expenseDate: string;
   relatedTestId?: number;
-  relatedDoctorId?: number;
-  percentage?: number;
   isRecurring: boolean;
   recurringFrequency?: "monthly" | "weekly" | "daily";
   status: "active" | "inactive" | "paid";
@@ -86,42 +79,15 @@ export type Expense = {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
-  relatedDoctor?: Doctor;
 };
 
-// Fetch expenses from API
+// Fetch expenses from API (only regular payments, excluding commissions)
 async function fetchExpenses(): Promise<Expense[]> {
-  const response = await fetch("/api/laboratory/expenses");
+  const response = await fetch(
+    "/api/laboratory/expenses?expenseType=regular_payment"
+  );
   if (!response.ok) {
     throw new Error("Failed to fetch expenses");
-  }
-  return response.json();
-}
-
-// Fetch doctors from API
-async function fetchDoctors(): Promise<Doctor[]> {
-  const response = await fetch("/api/laboratory/doctors");
-  if (!response.ok) {
-    throw new Error("Failed to fetch doctors");
-  }
-  const data = await response.json();
-  return data.doctors || [];
-}
-
-// Calculate income from API
-async function calculateIncome(
-  startDate: string,
-  endDate: string,
-  doctorId?: string
-): Promise<{ totalIncome: number; doctor?: Doctor }> {
-  const params = new URLSearchParams({ startDate, endDate });
-  if (doctorId) {
-    params.append("doctorId", doctorId);
-  }
-
-  const response = await fetch(`/api/laboratory/income?${params}`);
-  if (!response.ok) {
-    throw new Error("Failed to calculate income");
   }
   return response.json();
 }
@@ -156,8 +122,6 @@ async function deleteExpense(id: number): Promise<void> {
 
 const expenseTypeLabels = {
   regular_payment: "Regular Payment",
-  doctor_percentage: "Doctor Percentage",
-  laboratory_salary: "Laboratory Salary",
 };
 
 const statusLabels = {
@@ -178,7 +142,6 @@ export default function ExpensesPage() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState({});
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isPercentageDialogOpen, setIsPercentageDialogOpen] = useState(false);
 
   // Form states
   const [newExpense, setNewExpense] = useState({
@@ -187,27 +150,9 @@ export default function ExpensesPage() {
     amount: 0,
     expenseDate: new Date().toISOString().split("T")[0],
     relatedTestId: undefined as number | undefined,
-    relatedDoctorId: undefined as number | undefined,
-    percentage: undefined as number | undefined,
     isRecurring: false,
     recurringFrequency: undefined as Expense["recurringFrequency"],
     status: "active" as Expense["status"],
-    notes: "",
-  });
-
-  // Percentage calculation states
-  const [percentageData, setPercentageData] = useState({
-    expenseType: "doctor_percentage" as
-      | "doctor_percentage"
-      | "laboratory_salary",
-    startDate: new Date(new Date().setDate(new Date().getDate() - 30))
-      .toISOString()
-      .split("T")[0], // Last 30 days
-    endDate: new Date().toISOString().split("T")[0],
-    doctorId: "",
-    percentage: 0,
-    calculatedAmount: 0,
-    description: "",
     notes: "",
   });
 
@@ -223,58 +168,21 @@ export default function ExpensesPage() {
     queryFn: fetchExpenses,
   });
 
-  const { data: doctors = [] } = useQuery({
-    queryKey: ["doctors"],
-    queryFn: fetchDoctors,
-  });
-
-  // Calculate income when criteria change
-  const { data: incomeData, refetch: calculateIncomeData } = useQuery({
-    queryKey: [
-      "income",
-      percentageData.startDate,
-      percentageData.endDate,
-      percentageData.doctorId,
-    ],
-    queryFn: () =>
-      calculateIncome(
-        percentageData.startDate,
-        percentageData.endDate,
-        percentageData.doctorId || undefined
-      ),
-    enabled: false, // We'll trigger this manually
-  });
-
   // Mutations
   const createMutation = useMutation({
     mutationFn: createExpense,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       setIsCreateDialogOpen(false);
-      setIsPercentageDialogOpen(false);
       setNewExpense({
         expenseType: "regular_payment",
         description: "",
         amount: 0,
         expenseDate: new Date().toISOString().split("T")[0],
         relatedTestId: undefined,
-        relatedDoctorId: undefined,
-        percentage: undefined,
         isRecurring: false,
         recurringFrequency: undefined,
         status: "active",
-        notes: "",
-      });
-      setPercentageData({
-        expenseType: "doctor_percentage",
-        startDate: new Date(new Date().setDate(new Date().getDate() - 30))
-          .toISOString()
-          .split("T")[0],
-        endDate: new Date().toISOString().split("T")[0],
-        doctorId: "",
-        percentage: 0,
-        calculatedAmount: 0,
-        description: "",
         notes: "",
       });
     },
@@ -286,68 +194,6 @@ export default function ExpensesPage() {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
     },
   });
-
-  // Calculate amount when percentage or income changes
-  useEffect(() => {
-    if (incomeData?.totalIncome && percentageData.percentage > 0) {
-      const amount = (incomeData.totalIncome * percentageData.percentage) / 100;
-      setPercentageData((prev) => ({
-        ...prev,
-        calculatedAmount: Math.round(amount * 100) / 100, // Round to 2 decimal places
-      }));
-    } else {
-      setPercentageData((prev) => ({ ...prev, calculatedAmount: 0 }));
-    }
-  }, [percentageData.percentage, incomeData?.totalIncome]); // More specific dependency
-
-  // Auto-generate description
-  useEffect(() => {
-    const doctor = doctors.find(
-      (d) => d.id.toString() === percentageData.doctorId
-    );
-    const periodDescription = `${new Date(
-      percentageData.startDate
-    ).toLocaleDateString()} - ${new Date(
-      percentageData.endDate
-    ).toLocaleDateString()}`;
-
-    let description = "";
-    if (percentageData.expenseType === "doctor_percentage" && doctor) {
-      description = `${doctor.name} Commission - ${periodDescription}`;
-    } else if (percentageData.expenseType === "laboratory_salary") {
-      description = `Laboratory Salary - ${periodDescription}`;
-    }
-
-    setPercentageData((prev) => ({ ...prev, description }));
-  }, [
-    percentageData.expenseType,
-    percentageData.doctorId,
-    percentageData.startDate,
-    percentageData.endDate,
-    doctors.length, // Use length instead of full array reference
-  ]);
-
-  const handleCalculateIncome = () => {
-    calculateIncomeData();
-  };
-
-  const handleCreatePercentageExpense = () => {
-    const expenseData: CreateExpenseForm = {
-      expenseType: percentageData.expenseType,
-      description: percentageData.description,
-      amount: percentageData.calculatedAmount,
-      expenseDate: new Date().toISOString().split("T")[0],
-      relatedDoctorId: percentageData.doctorId
-        ? parseInt(percentageData.doctorId)
-        : undefined,
-      percentage: percentageData.percentage,
-      isRecurring: false,
-      status: "active",
-      notes: percentageData.notes,
-    };
-
-    createMutation.mutate(expenseData);
-  };
 
   const handleCreateExpense = () => {
     createMutation.mutate(newExpense);
@@ -460,22 +306,6 @@ export default function ExpensesPage() {
       ),
     },
     {
-      accessorKey: "percentage",
-      header: "Percentage",
-      cell: ({ row }) => {
-        const percentage = row.getValue("percentage") as number;
-        return percentage ? `${percentage}%` : "-";
-      },
-    },
-    {
-      accessorKey: "relatedDoctor.name",
-      header: "Doctor",
-      cell: ({ row }) => {
-        const doctor = row.original.relatedDoctor;
-        return doctor ? <div>{doctor.name}</div> : "-";
-      },
-    },
-    {
       id: "actions",
       enableHiding: false,
       cell: ({ row }) => {
@@ -541,215 +371,15 @@ export default function ExpensesPage() {
   }
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-6 pt-12 px-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Laboratory Expenses</h1>
           <p className="text-muted-foreground">
-            Manage regular payments, doctor percentages, and laboratory salaries
+            Manage regular payments and expenses
           </p>
         </div>
         <div className="flex gap-2">
-          <Dialog
-            open={isPercentageDialogOpen}
-            onOpenChange={setIsPercentageDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Calculator className="mr-2 h-4 w-4" />
-                Add Percentage Expense
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Add Percentage-Based Expense</DialogTitle>
-                <DialogDescription>
-                  Calculate expenses based on laboratory income for a specific
-                  period.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="percentageExpenseType">Expense Type</Label>
-                    <Select
-                      value={percentageData.expenseType}
-                      onValueChange={(
-                        value: "doctor_percentage" | "laboratory_salary"
-                      ) =>
-                        setPercentageData({
-                          ...percentageData,
-                          expenseType: value,
-                          doctorId:
-                            value === "laboratory_salary"
-                              ? ""
-                              : percentageData.doctorId,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="doctor_percentage">
-                          Doctor Percentage
-                        </SelectItem>
-                        <SelectItem value="laboratory_salary">
-                          Laboratory Salary
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {percentageData.expenseType === "doctor_percentage" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="doctor">Doctor</Label>
-                      <Select
-                        value={percentageData.doctorId}
-                        onValueChange={(value) =>
-                          setPercentageData({
-                            ...percentageData,
-                            doctorId: value,
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select doctor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {doctors.map((doctor) => (
-                            <SelectItem
-                              key={doctor.id}
-                              value={doctor.id.toString()}
-                            >
-                              {doctor.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="startDate">From Date</Label>
-                    <Input
-                      type="date"
-                      value={percentageData.startDate}
-                      onChange={(e) =>
-                        setPercentageData({
-                          ...percentageData,
-                          startDate: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="endDate">To Date</Label>
-                    <Input
-                      type="date"
-                      value={percentageData.endDate}
-                      onChange={(e) =>
-                        setPercentageData({
-                          ...percentageData,
-                          endDate: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="percentage">Percentage (%)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.1"
-                      value={percentageData.percentage}
-                      onChange={(e) =>
-                        setPercentageData({
-                          ...percentageData,
-                          percentage: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <Button onClick={handleCalculateIncome} className="w-full">
-                      Calculate Income
-                    </Button>
-                  </div>
-                </div>
-
-                {incomeData && (
-                  <Card>
-                    <CardContent className="pt-4">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <div className="font-medium">Total Income:</div>
-                          <div className="text-2xl font-bold text-green-600">
-                            ${incomeData.totalIncome?.toLocaleString() || 0}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="font-medium">Calculated Amount:</div>
-                          <div className="text-2xl font-bold text-blue-600">
-                            ${percentageData.calculatedAmount.toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                      {incomeData.doctor && (
-                        <div className="mt-2 text-xs text-muted-foreground">
-                          For doctor: {incomeData.doctor.name}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Input
-                    value={percentageData.description}
-                    onChange={(e) =>
-                      setPercentageData({
-                        ...percentageData,
-                        description: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    value={percentageData.notes}
-                    onChange={(e) =>
-                      setPercentageData({
-                        ...percentageData,
-                        notes: e.target.value,
-                      })
-                    }
-                    rows={3}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  onClick={handleCreatePercentageExpense}
-                  disabled={
-                    createMutation.isPending || !percentageData.calculatedAmount
-                  }
-                >
-                  {createMutation.isPending ? "Creating..." : "Create Expense"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
           <Dialog
             open={isCreateDialogOpen}
             onOpenChange={setIsCreateDialogOpen}
@@ -757,7 +387,7 @@ export default function ExpensesPage() {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Regular Expense
+                Add Expense
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
@@ -784,12 +414,6 @@ export default function ExpensesPage() {
                     <SelectContent>
                       <SelectItem value="regular_payment">
                         Regular Payment
-                      </SelectItem>
-                      <SelectItem value="doctor_percentage">
-                        Doctor Percentage
-                      </SelectItem>
-                      <SelectItem value="laboratory_salary">
-                        Laboratory Salary
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -844,28 +468,6 @@ export default function ExpensesPage() {
                     className="col-span-3"
                   />
                 </div>
-                {(newExpense.expenseType === "doctor_percentage" ||
-                  newExpense.expenseType === "laboratory_salary") && (
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="percentage" className="text-right">
-                      Percentage
-                    </Label>
-                    <Input
-                      id="percentage"
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={newExpense.percentage || ""}
-                      onChange={(e) =>
-                        setNewExpense({
-                          ...newExpense,
-                          percentage: parseFloat(e.target.value) || undefined,
-                        })
-                      }
-                      className="col-span-3"
-                    />
-                  </div>
-                )}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="status" className="text-right">
                     Status

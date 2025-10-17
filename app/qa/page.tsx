@@ -1,73 +1,386 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import QuestionForm from "../../components/QuestionForm";
-import QuestionItem from "@/components/QuestionItem";
-import * as actions from "../../app/qa/actions";
+import { useEffect, useState } from "react";
+import { useUser } from "@clerk/nextjs";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  MessageSquare,
+  Send,
+  User,
+  Calendar,
+  CheckCircle,
+  Clock,
+} from "lucide-react";
 import { Question } from "@/types/types";
+import { submitQuestion, getApprovedQuestionsWithAnswers } from "./actions";
 
-export default function QAPage() {
+export default function PatientQAPage() {
+  const { user, isLoaded } = useUser();
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [newQuestion, setNewQuestion] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchQuestions();
-  }, []);
+    if (isLoaded) {
+      fetchQuestions();
+    }
+  }, [isLoaded]);
 
   const fetchQuestions = async () => {
-    const questions = await actions.getAllQuestions();
-    setQuestions(questions);
+    try {
+      setLoading(true);
+      const questionsData = await getApprovedQuestionsWithAnswers();
+      // Only show questions that have at least one approved answer
+      const answeredQuestions = questionsData.filter(
+        (q) => q.approved && q.answers.some((a) => a.approved)
+      );
+
+      // Convert Date | null timestamps to strings to match Question interface
+      const formattedQuestions = answeredQuestions.map((question) => ({
+        ...question,
+        timestamp: question.timestamp
+          ? new Date(question.timestamp).toISOString()
+          : undefined,
+        answers: question.answers.map((answer) => ({
+          ...answer,
+          timestamp: answer.timestamp
+            ? new Date(answer.timestamp).toISOString()
+            : undefined,
+        })),
+      }));
+
+      setQuestions(formattedQuestions);
+    } catch (error) {
+      console.error("Failed to fetch questions:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const addQuestion = async (quiz: string) => {
-    await actions.createQuestion(quiz);
-    fetchQuestions();
+  const handleSubmitQuestion = async () => {
+    if (!newQuestion.trim() || !user) return;
+
+    setSubmitting(true);
+    try {
+      await submitQuestion({
+        quiz: newQuestion,
+        contributor: `${user.firstName} ${user.lastName}`,
+        contributorId: user.id,
+      });
+      setNewQuestion("");
+      // Show success message
+      alert(
+        "Your question has been submitted! Our clinic team will answer it soon."
+      );
+    } catch (error) {
+      console.error("Failed to submit question:", error);
+      alert("Failed to submit question. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const editQuestion = async (id: number, newText: string) => {
-    await actions.updateQuestion(id, newText);
-    fetchQuestions();
-  };
-
-  const deleteQuestion = async (id: number) => {
-    await actions.deleteQuestion(id);
-    fetchQuestions();
-  };
-
-  const addAnswer = async (questionId: number, answer: string) => {
-    await actions.createAnswer(answer, questionId);
-    fetchQuestions();
-  };
-
-  const editAnswer = async (answerId: number, newText: string) => {
-    await actions.updateAnswer(answerId, newText);
-    fetchQuestions();
-  };
-
-  const deleteAnswer = async (answerId: number) => {
-    await actions.deleteAnswer(answerId);
-    fetchQuestions();
-  };
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <main className="container mx-auto flex-grow p-4">
-        <QuestionForm onSubmit={addQuestion} />
-        {Array.isArray(questions) && (
-          <div className="space-y-4">
-            {questions.map((question) => (
-              <QuestionItem
-                key={question.id}
-                question={question}
-                onEditQuestion={editQuestion}
-                onDeleteQuestion={deleteQuestion}
-                onAddAnswer={addAnswer}
-                onEditAnswer={editAnswer}
-                onDeleteAnswer={deleteAnswer}
-              />
-            ))}
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="bg-gradient-to-r from-blue-600 to-teal-600 p-3 rounded-2xl">
+              <MessageSquare className="h-8 w-8 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900">Patient Q&A</h1>
           </div>
-        )}
-      </main>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Ask questions about medical tests and procedures. Our clinic team
+            will provide answers.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Ask Question Card */}
+            <Card className="shadow-2xl border-0 bg-gradient-to-br from-white to-blue-50">
+              <CardHeader className="bg-gradient-to-r from-blue-600 to-teal-600 text-white rounded-t-xl">
+                <CardTitle className="flex items-center gap-2">
+                  <Send className="h-5 w-5" />
+                  Ask a Question
+                </CardTitle>
+                <CardDescription className="text-blue-100">
+                  Have questions about medical tests? Ask our experts!
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <Textarea
+                    placeholder="Type your question here... (e.g., What should I expect during a blood test? How do I prepare for an MRI?)"
+                    value={newQuestion}
+                    onChange={(e) => setNewQuestion(e.target.value)}
+                    rows={4}
+                    className="border-2 border-gray-200 focus:border-blue-500 rounded-xl text-lg min-h-[120px]"
+                  />
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <User className="h-4 w-4" />
+                      {user
+                        ? `${user.firstName} ${user.lastName}`
+                        : "Please sign in to ask questions"}
+                    </div>
+                    <Button
+                      onClick={handleSubmitQuestion}
+                      disabled={!newQuestion.trim() || !user || submitting}
+                      className="bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700"
+                    >
+                      {submitting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Submit Question
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <div className="text-sm text-gray-500 bg-blue-50 p-3 rounded-lg">
+                    <p className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Your question will be reviewed and answered by our clinic
+                      team. Check back later for the response.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Answered Questions */}
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+                Answered Questions
+                <Badge variant="secondary" className="ml-2">
+                  {questions.length}
+                </Badge>
+              </h2>
+
+              {loading ? (
+                <Card className="text-center py-12 shadow-xl border-0 bg-white/90">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-500">Loading questions...</p>
+                </Card>
+              ) : questions.length === 0 ? (
+                <Card className="text-center py-12 shadow-xl border-0 bg-white/90">
+                  <MessageSquare className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-500 mb-2">
+                    No answered questions yet
+                  </h3>
+                  <p className="text-gray-400">
+                    Be the first to ask a question! Our team will provide
+                    answers.
+                  </p>
+                </Card>
+              ) : (
+                questions.map((question) => (
+                  <QuestionCard key={question.id} question={question} />
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Guidelines Card */}
+            <Card className="shadow-2xl border-0 bg-gradient-to-br from-white to-green-50">
+              <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-xl">
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5" />
+                  How It Works
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="bg-blue-100 p-2 rounded-lg mt-1">
+                      <MessageSquare className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">
+                        Ask Your Question
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        Submit any questions about medical tests or procedures
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="bg-green-100 p-2 rounded-lg mt-1">
+                      <Clock className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">
+                        Clinic Team Reviews
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        Our medical experts will review and answer your question
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="bg-purple-100 p-2 rounded-lg mt-1">
+                      <CheckCircle className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">
+                        Get Your Answer
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        Check back to see the approved question and answer
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* User Info Card */}
+            {user && (
+              <Card className="shadow-2xl border-0 bg-gradient-to-br from-white to-purple-50">
+                <CardHeader className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-t-xl">
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Your Profile
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold">
+                      {user.firstName?.[0]}
+                      {user.lastName?.[0]}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
+                        {user.firstName} {user.lastName}
+                      </h3>
+                      <Badge variant="secondary">Patient</Badge>
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div className="flex justify-between">
+                      <span>Questions Asked:</span>
+                      <span className="font-semibold">
+                        {
+                          questions.filter((q) => q.contributorId === user.id)
+                            .length
+                        }
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
+  );
+}
+
+// Simple Question Card for Patients (read-only)
+function QuestionCard({ question }: any) {
+  const approvedAnswers = question.answers.filter((a: any) => a.approved);
+
+  return (
+    <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm hover:shadow-xl transition-all duration-300">
+      <CardContent className="p-6">
+        {/* Question Header */}
+        <div className="mb-4">
+          <div className="flex items-center gap-3 mb-2">
+            <h3 className="text-lg font-semibold text-gray-900">
+              {question.quiz}
+            </h3>
+            <Badge
+              variant="default"
+              className="bg-green-100 text-green-800 border-green-200"
+            >
+              <CheckCircle className="h-3 w-3 mr-1" />
+              Answered
+            </Badge>
+          </div>
+          <div className="flex items-center gap-4 text-sm text-gray-500">
+            <div className="flex items-center gap-1">
+              <User className="h-3 w-3" />
+              {question.contributor}
+            </div>
+            <div className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {new Date(question.timestamp!).toLocaleDateString()}
+            </div>
+          </div>
+        </div>
+
+        {/* Answers Section */}
+        <div className="space-y-4">
+          <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            Clinic Response
+          </h4>
+
+          {/* Approved Answers */}
+          {approvedAnswers.map((answer: any) => (
+            <div
+              key={answer.id}
+              className="bg-green-50 rounded-xl p-4 border border-green-200"
+            >
+              <div className="flex items-start gap-3">
+                <div className="bg-green-100 p-2 rounded-lg mt-1">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-gray-800">{answer.ans}</p>
+                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <User className="h-3 w-3" />
+                      Clinic Team
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {new Date(answer.timestamp!).toLocaleDateString()}
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className="bg-green-50 text-green-700 border-green-200 text-xs"
+                    >
+                      Verified Answer
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

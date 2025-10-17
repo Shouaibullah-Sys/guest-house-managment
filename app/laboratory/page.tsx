@@ -1,4 +1,3 @@
-// app/laboratory/page.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -32,6 +31,8 @@ import {
   Settings,
   Bell,
   UserCog,
+  DollarSign,
+  TrendingUp,
 } from "lucide-react";
 import { gsap } from "gsap";
 
@@ -39,18 +40,23 @@ interface DashboardStats {
   totalTests: number;
   pendingResults: number;
   completedToday: number;
-  criticalResults: number;
+  unpaidTests: number;
+  totalRevenue: number;
+  todayRevenue: number;
 }
 
 export default function LaboratoryDashboard() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats>({
-    totalTests: 1247,
-    pendingResults: 23,
-    completedToday: 48,
-    criticalResults: 3,
+    totalTests: 0,
+    pendingResults: 0,
+    completedToday: 0,
+    unpaidTests: 0,
+    totalRevenue: 0,
+    todayRevenue: 0,
   });
+  const [loading, setLoading] = useState(true);
 
   // Refs for GSAP animations
   const heroRef = useRef(null);
@@ -73,9 +79,87 @@ export default function LaboratoryDashboard() {
     }
   }, [user, isLoaded, router]);
 
+  // Fetch real data
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+
+        // Fetch laboratory tests data
+        const testsResponse = await fetch("/api/laboratory/tests");
+        const testsData = await testsResponse.json();
+
+        // Fetch expenses data
+        const expensesResponse = await fetch("/api/laboratory/expenses");
+        const expensesData = await expensesResponse.json();
+
+        // Calculate statistics from real data
+        const currentDate = new Date();
+        const today = new Date(
+          currentDate.getFullYear(),
+          currentDate.getMonth(),
+          currentDate.getDate()
+        );
+
+        const tests = testsData.tests || [];
+        const expenses = expensesData || [];
+
+        // Calculate test statistics
+        const totalTests = tests.length;
+        const pendingResults = tests.filter(
+          (test: any) => test.status === "pending"
+        ).length;
+        const completedToday = tests.filter((test: any) => {
+          const testDate = new Date(test.testDate);
+          return (
+            test.status === "completed" &&
+            testDate >= today &&
+            testDate < new Date(today.getTime() + 24 * 60 * 60 * 1000)
+          );
+        }).length;
+        const unpaidTests = tests.filter(
+          (test: any) =>
+            test.paymentStatus === "pending" || test.paymentStatus === "partial"
+        ).length;
+
+        // Calculate revenue statistics
+        const totalRevenue = tests.reduce(
+          (sum: number, test: any) => sum + (test.amountPaid || 0),
+          0
+        );
+        const todayRevenue = tests
+          .filter((test: any) => {
+            const testDate = new Date(test.testDate);
+            return (
+              testDate >= today &&
+              testDate < new Date(today.getTime() + 24 * 60 * 60 * 1000)
+            );
+          })
+          .reduce((sum: number, test: any) => sum + (test.amountPaid || 0), 0);
+
+        setStats({
+          totalTests,
+          pendingResults,
+          completedToday,
+          unpaidTests,
+          totalRevenue,
+          todayRevenue,
+        });
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [isLoaded, user]);
+
   // Initialize animations
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || loading) return;
 
     const tl = gsap.timeline();
 
@@ -124,9 +208,9 @@ export default function LaboratoryDashboard() {
       yoyo: true,
       ease: "sine.inOut",
     });
-  }, [isLoaded]);
+  }, [isLoaded, loading]);
 
-  if (!isLoaded) {
+  if (!isLoaded || loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50">
         <div className="text-center">
@@ -138,6 +222,14 @@ export default function LaboratoryDashboard() {
   }
 
   const userRole = user?.publicMetadata?.role as string;
+
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(amount / 100); // Assuming amount is in cents
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50">
@@ -162,7 +254,7 @@ export default function LaboratoryDashboard() {
           className="absolute bottom-20 right-10 floating-icon"
           style={{ animationDelay: "1.5s" }}
         >
-          <Stethoscope className="h-8 w-8 text-green-200 opacity-60" />
+          <DollarSign className="h-8 w-8 text-green-200 opacity-60" />
         </div>
       </div>
       <main className="flex-grow container mx-auto p-4 md:p-6 relative z-10">
@@ -178,7 +270,7 @@ export default function LaboratoryDashboard() {
                 <span className="font-semibold text-blue-600">
                   {user?.firstName}
                 </span>
-                . Manage laboratory operations, test results, and patient
+                . Manage laboratory operations, test results, and financial
                 records.
               </p>
             </div>
@@ -252,19 +344,62 @@ export default function LaboratoryDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-red-500 to-red-600 text-white border-0 shadow-lg">
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg">
             <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-red-100 text-sm font-medium">
-                    Critical Results
+                  <p className="text-purple-100 text-sm font-medium">
+                    Unpaid Tests
                   </p>
                   <p className="text-2xl md:text-3xl font-bold mt-1">
-                    {stats.criticalResults}
+                    {stats.unpaidTests}
                   </p>
                 </div>
                 <div className="bg-white/20 p-3 rounded-full">
-                  <Activity className="h-6 w-6" />
+                  <DollarSign className="h-6 w-6" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Revenue Overview */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <Card className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-emerald-100 text-sm font-medium">
+                    Total Revenue
+                  </p>
+                  <p className="text-2xl md:text-3xl font-bold mt-1">
+                    {formatCurrency(stats.totalRevenue)}
+                  </p>
+                  <p className="text-emerald-200 text-xs mt-2">
+                    All-time collected amount
+                  </p>
+                </div>
+                <div className="bg-white/20 p-3 rounded-full">
+                  <TrendingUp className="h-6 w-6" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-cyan-500 to-blue-600 text-white border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-cyan-100 text-sm font-medium">
+                    Today's Revenue
+                  </p>
+                  <p className="text-2xl md:text-3xl font-bold mt-1">
+                    {formatCurrency(stats.todayRevenue)}
+                  </p>
+                  <p className="text-cyan-200 text-xs mt-2">Collected today</p>
+                </div>
+                <div className="bg-white/20 p-3 rounded-full">
+                  <DollarSign className="h-6 w-6" />
                 </div>
               </div>
             </CardContent>
@@ -301,54 +436,36 @@ export default function LaboratoryDashboard() {
                     Open Daily Records
                   </Link>
                 </Button>
-                <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1 text-xs" asChild>
-                    <Link href="/laboratory/tests">
-                      <Search className="h-3 w-3 mr-1" />
-                      Search Tests
-                    </Link>
-                  </Button>
-                  <Button variant="outline" className="flex-1 text-xs" asChild>
-                    <Link href="/laboratory/upload">
-                      <Upload className="h-3 w-3 mr-1" />
-                      Bulk Upload
-                    </Link>
-                  </Button>
-                </div>
+                <div className="flex gap-2"></div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Patient Management Card */}
+          {/* Daily Expenses Card */}
           <Card className="dashboard-card shadow-lg border-0 hover:shadow-xl transition-shadow duration-300">
             <CardHeader className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-t-lg pb-4">
               <CardTitle className="flex items-center gap-3 text-xl">
                 <div className="bg-white/20 p-2 rounded-lg">
-                  <Users className="h-5 w-5" />
+                  <DollarSign className="h-5 w-5" />
                 </div>
-                Patient Management
+                Daily Expenses
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <p className="text-gray-600 mb-4 text-sm leading-relaxed">
-                Manage patient profiles, view test history, and access
-                comprehensive medical records and reports.
+                Track laboratory expenses, manage payments to doctors, and
+                monitor operational costs.
               </p>
               <div className="space-y-3">
-                <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white">
-                  <Users className="h-4 w-4 mr-2" />
-                  Manage Patients
+                <Button
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                  asChild
+                >
+                  <Link href="/laboratory/expenses">
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Manage Expenses
+                  </Link>
                 </Button>
-                <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1 text-xs">
-                    <UserCheck className="h-3 w-3 mr-1" />
-                    New Patient
-                  </Button>
-                  <Button variant="outline" className="flex-1 text-xs">
-                    <Search className="h-3 w-3 mr-1" />
-                    Find Record
-                  </Button>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -378,118 +495,6 @@ export default function LaboratoryDashboard() {
                     Manage Doctors
                   </Link>
                 </Button>
-                <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1 text-xs">
-                    <Stethoscope className="h-3 w-3 mr-1" />
-                    Add Doctor
-                  </Button>
-                  <Button variant="outline" className="flex-1 text-xs">
-                    <FileText className="h-3 w-3 mr-1" />
-                    Orders
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Reports & Analytics Card */}
-          <Card className="dashboard-card shadow-lg border-0 hover:shadow-xl transition-shadow duration-300">
-            <CardHeader className="bg-gradient-to-r from-orange-600 to-amber-600 text-white rounded-t-lg pb-4">
-              <CardTitle className="flex items-center gap-3 text-xl">
-                <div className="bg-white/20 p-2 rounded-lg">
-                  <BarChart3 className="h-5 w-5" />
-                </div>
-                Reports & Analytics
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <p className="text-gray-600 mb-4 text-sm leading-relaxed">
-                Generate comprehensive reports, view laboratory analytics, and
-                track performance metrics.
-              </p>
-              <div className="space-y-3">
-                <Button className="w-full bg-orange-600 hover:bg-orange-700 text-white">
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  View Reports
-                </Button>
-                <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1 text-xs">
-                    <Download className="h-3 w-3 mr-1" />
-                    Export Data
-                  </Button>
-                  <Button variant="outline" className="flex-1 text-xs">
-                    <Calendar className="h-3 w-3 mr-1" />
-                    Monthly
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quality Control Card */}
-          <Card className="dashboard-card shadow-lg border-0 hover:shadow-xl transition-shadow duration-300">
-            <CardHeader className="bg-gradient-to-r from-gray-600 to-slate-600 text-white rounded-t-lg pb-4">
-              <CardTitle className="flex items-center gap-3 text-xl">
-                <div className="bg-white/20 p-2 rounded-lg">
-                  <Shield className="h-5 w-5" />
-                </div>
-                Quality Control
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <p className="text-gray-600 mb-4 text-sm leading-relaxed">
-                Monitor quality assurance, equipment calibration, and compliance
-                with laboratory standards.
-              </p>
-              <div className="space-y-3">
-                <Button className="w-full bg-gray-600 hover:bg-gray-700 text-white">
-                  <Shield className="h-4 w-4 mr-2" />
-                  QC Dashboard
-                </Button>
-                <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1 text-xs">
-                    <Activity className="h-3 w-3 mr-1" />
-                    Calibration
-                  </Button>
-                  <Button variant="outline" className="flex-1 text-xs">
-                    <FileText className="h-3 w-3 mr-1" />
-                    Compliance
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* System Settings Card */}
-          <Card className="dashboard-card shadow-lg border-0 hover:shadow-xl transition-shadow duration-300">
-            <CardHeader className="bg-gradient-to-r from-slate-600 to-gray-600 text-white rounded-t-lg pb-4">
-              <CardTitle className="flex items-center gap-3 text-xl">
-                <div className="bg-white/20 p-2 rounded-lg">
-                  <Settings className="h-5 w-5" />
-                </div>
-                System Settings
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <p className="text-gray-600 mb-4 text-sm leading-relaxed">
-                Configure laboratory settings, user permissions, and system
-                preferences.
-              </p>
-              <div className="space-y-3">
-                <Button className="w-full bg-slate-600 hover:bg-slate-700 text-white">
-                  <Settings className="h-4 w-4 mr-2" />
-                  System Settings
-                </Button>
-                <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1 text-xs">
-                    <UserCog className="h-3 w-3 mr-1" />
-                    Users
-                  </Button>
-                  <Button variant="outline" className="flex-1 text-xs">
-                    <Bell className="h-3 w-3 mr-1" />
-                    Alerts
-                  </Button>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -531,8 +536,8 @@ export default function LaboratoryDashboard() {
                   variant="outline"
                   className="h-20 flex-col gap-2 bg-white hover:bg-purple-50 border-purple-200"
                 >
-                  <Users className="h-5 w-5 text-purple-600" />
-                  <span className="text-sm font-medium">Patient Lookup</span>
+                  <DollarSign className="h-5 w-5 text-purple-600" />
+                  <span className="text-sm font-medium">Add Expense</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -639,40 +644,11 @@ export default function LaboratoryDashboard() {
                     Manage Users
                   </Link>
                 </Button>
-                <Button
-                  variant="outline"
-                  className="border-orange-300 text-orange-700 hover:bg-orange-50"
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  System Config
-                </Button>
               </div>
             </CardContent>
           </Card>
         )}
       </main>
-
-      <footer className="bg-gradient-to-r from-gray-800 to-blue-900 text-white py-8 mt-8">
-        <div className="container mx-auto px-4 text-center">
-          <div className="flex justify-center items-center gap-4 mb-4">
-            <div className="bg-white/10 p-2 rounded-full">
-              <Microscope className="h-5 w-5" />
-            </div>
-            <div className="bg-white/10 p-2 rounded-full">
-              <Shield className="h-5 w-5" />
-            </div>
-            <div className="bg-white/10 p-2 rounded-full">
-              <Activity className="h-5 w-5" />
-            </div>
-          </div>
-          <p className="text-sm text-gray-300 mb-2">
-            © 2024 Laboratory Management System • Professional Grade Diagnostics
-          </p>
-          <p className="text-xs text-gray-400 max-w-2xl mx-auto leading-relaxed">
-            Certified ISO 15189:2012 • HIPAA Compliant • CLIA Certified
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }

@@ -25,6 +25,7 @@ export interface Patient {
   id: number;
   firstName: string;
   lastName: string;
+  middleName?: string;
   phoneNumber: string;
   patientPin?: string;
   email?: string;
@@ -33,6 +34,7 @@ export interface Patient {
   address?: string;
   emergencyContact?: string;
   medicalHistory?: string;
+  lastVisitDate?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -79,6 +81,16 @@ export interface LaboratoryTestWithDetails extends LaboratoryTest {
   laboratoryName?: string;
   laboratoryAddress?: string;
   laboratoryContact?: string;
+  clinicalHistory?: string;
+  symptoms?: string;
+  currentMedications?: string;
+  fastingRequired?: boolean;
+  specialInstructions?: string;
+  receivedDate?: string;
+  completedDate?: string;
+  collectionSite?: string;
+  collectedBy?: string;
+  discount?: number;
 }
 
 export interface EditTestForm {

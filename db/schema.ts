@@ -12,7 +12,7 @@ import { relations } from "drizzle-orm";
 export const questions = pgTable("questions", {
   id: serial("id").primaryKey(),
   quiz: text("quiz").notNull(),
-  approved: boolean("approved"),
+  approved: boolean("approved").default(false),
   contributor: text("contributor").notNull(),
   contributorId: text("contributor_id").notNull(),
   timestamp: timestamp("timestamp", { withTimezone: true }).defaultNow(),
@@ -22,7 +22,7 @@ export const questions = pgTable("questions", {
 export const answers = pgTable("answers", {
   id: serial("id").primaryKey(),
   ans: text("ans").notNull(),
-  approved: boolean("approved"),
+  approved: boolean("approved").default(false),
   contributor: text("contributor").notNull(),
   contributorId: text("contributor_id").notNull(),
   questionId: integer("question_id")
