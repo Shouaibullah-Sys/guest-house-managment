@@ -243,6 +243,7 @@ export default function LaboratoryDailyRecord() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(testData),
       });
+      ``;
 
       console.log("Response status:", response.status);
 
@@ -630,6 +631,299 @@ export default function LaboratoryDailyRecord() {
 
         {/* Rest of your existing JSX for forms and tables remains the same */}
         {/* ... (keep all the existing form JSX exactly as it was) ... */}
+
+        {/* Create New Test Dialog */}
+        <Dialog open={showNewTestForm} onOpenChange={setShowNewTestForm}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-lg p-6 -m-6 mb-6">
+              <DialogTitle className="flex items-center gap-3 text-xl text-white">
+                <Plus className="h-6 w-6" />
+                Create New Laboratory Test
+                {selectedPatient && (
+                  <span>
+                    {" "}
+                    for {selectedPatient.firstName} {selectedPatient.lastName}
+                  </span>
+                )}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+              {selectedPatient && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <h3 className="font-semibold text-blue-900 mb-2">
+                    Selected Patient
+                  </h3>
+                  <div className="text-sm text-blue-800">
+                    <p>
+                      <strong>Name:</strong> {selectedPatient.firstName}{" "}
+                      {selectedPatient.lastName}
+                    </p>
+                    <p>
+                      <strong>Phone:</strong> {selectedPatient.phoneNumber}
+                    </p>
+                    {selectedPatient.dateOfBirth && (
+                      <p>
+                        <strong>DOB:</strong> {selectedPatient.dateOfBirth}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="testType"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Test Type *
+                  </Label>
+                  <Select
+                    value={newTest.testType}
+                    onValueChange={(value) =>
+                      setNewTest({ ...newTest, testType: value })
+                    }
+                  >
+                    <SelectTrigger className="border-2 border-gray-200 focus:border-green-500 rounded-xl h-12">
+                      <SelectValue placeholder="Select test type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="blood">Blood Test</SelectItem>
+                      <SelectItem value="urine">Urine Test</SelectItem>
+                      <SelectItem value="stool">Stool Test</SelectItem>
+                      <SelectItem value="biochemistry">Biochemistry</SelectItem>
+                      <SelectItem value="hematology">Hematology</SelectItem>
+                      <SelectItem value="microbiology">Microbiology</SelectItem>
+                      <SelectItem value="immunology">Immunology</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="testName"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Test Name *
+                  </Label>
+                  <Input
+                    id="testName"
+                    value={newTest.testName}
+                    onChange={(e) =>
+                      setNewTest({ ...newTest, testName: e.target.value })
+                    }
+                    placeholder="Enter test name"
+                    className="border-2 border-gray-200 focus:border-green-500 transition-colors rounded-xl h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="testDate"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Test Date
+                  </Label>
+                  <Input
+                    id="testDate"
+                    type="date"
+                    value={newTest.testDate}
+                    onChange={(e) =>
+                      setNewTest({ ...newTest, testDate: e.target.value })
+                    }
+                    className="border-2 border-gray-200 focus:border-green-500 transition-colors rounded-xl h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="referredBy"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Referred By
+                  </Label>
+                  <Select
+                    value={newTest.referredBy}
+                    onValueChange={(value) =>
+                      setNewTest({ ...newTest, referredBy: value })
+                    }
+                  >
+                    <SelectTrigger className="border-2 border-gray-200 focus:border-green-500 rounded-xl h-12">
+                      <SelectValue placeholder="Select referring doctor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {doctors.map((doctor: Doctor) => (
+                        <SelectItem key={doctor.id} value={doctor.name}>
+                          {doctor.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="technician"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Technician
+                  </Label>
+                  <Input
+                    id="technician"
+                    value={newTest.technician}
+                    onChange={(e) =>
+                      setNewTest({ ...newTest, technician: e.target.value })
+                    }
+                    placeholder="Enter technician name"
+                    className="border-2 border-gray-200 focus:border-green-500 transition-colors rounded-xl h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="status"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Status
+                  </Label>
+                  <Select
+                    value={newTest.status}
+                    onValueChange={(
+                      value: "pending" | "completed" | "cancelled"
+                    ) => setNewTest({ ...newTest, status: value })}
+                  >
+                    <SelectTrigger className="border-2 border-gray-200 focus:border-green-500 rounded-xl h-12">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="amountCharged"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Amount Charged (AFN)
+                  </Label>
+                  <Input
+                    id="amountCharged"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newTest.amountCharged}
+                    onChange={(e) =>
+                      setNewTest({
+                        ...newTest,
+                        amountCharged: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    placeholder="0.00"
+                    className="border-2 border-gray-200 focus:border-green-500 transition-colors rounded-xl h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="amountPaid"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Amount Paid (AFN)
+                  </Label>
+                  <Input
+                    id="amountPaid"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newTest.amountPaid}
+                    onChange={(e) =>
+                      setNewTest({
+                        ...newTest,
+                        amountPaid: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    placeholder="0.00"
+                    className="border-2 border-gray-200 focus:border-green-500 transition-colors rounded-xl h-12"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="notes"
+                  className="text-sm font-semibold text-gray-700"
+                >
+                  Notes
+                </Label>
+                <Textarea
+                  id="notes"
+                  value={newTest.notes}
+                  onChange={(e) =>
+                    setNewTest({ ...newTest, notes: e.target.value })
+                  }
+                  rows={3}
+                  placeholder="Additional notes..."
+                  className="border-2 border-gray-200 focus:border-green-500 transition-colors rounded-xl"
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowNewTestForm(false);
+                    setSelectedPatient(null);
+                    setNewTest({
+                      patientId: 0,
+                      testType: "",
+                      testName: "",
+                      testDate: new Date().toISOString().split("T")[0],
+                      results: "",
+                      status: "pending",
+                      notes: "",
+                      referredBy: "",
+                      technician: user?.firstName || "",
+                      amountCharged: 0,
+                      amountPaid: 0,
+                      paymentStatus: "pending",
+                    });
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateTest}
+                  disabled={
+                    createTestMutation.isPending ||
+                    !newTest.testType ||
+                    !newTest.testName ||
+                    !selectedPatient
+                  }
+                  className="w-full sm:w-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                >
+                  {createTestMutation.isPending ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Creating Test...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Test
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Create New Patient Dialog */}
         <Dialog open={showNewPatientForm} onOpenChange={setShowNewPatientForm}>
