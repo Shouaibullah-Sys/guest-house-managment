@@ -631,6 +631,233 @@ export default function LaboratoryDailyRecord() {
         {/* Rest of your existing JSX for forms and tables remains the same */}
         {/* ... (keep all the existing form JSX exactly as it was) ... */}
 
+        {/* Create New Patient Dialog */}
+        <Dialog open={showNewPatientForm} onOpenChange={setShowNewPatientForm}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="bg-gradient-to-r from-blue-600 to-teal-600 text-white rounded-t-lg p-6 -m-6 mb-6">
+              <DialogTitle className="flex items-center gap-3 text-xl text-white">
+                <UserPlus className="h-6 w-6" />
+                Create New Patient
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="firstName"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    First Name *
+                  </Label>
+                  <Input
+                    id="firstName"
+                    value={newPatient.firstName}
+                    onChange={(e) =>
+                      setNewPatient({
+                        ...newPatient,
+                        firstName: e.target.value,
+                      })
+                    }
+                    placeholder="Enter first name"
+                    className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="lastName"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Last Name *
+                  </Label>
+                  <Input
+                    id="lastName"
+                    value={newPatient.lastName}
+                    onChange={(e) =>
+                      setNewPatient({ ...newPatient, lastName: e.target.value })
+                    }
+                    placeholder="Enter last name"
+                    className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="phoneNumber"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Phone Number *
+                  </Label>
+                  <Input
+                    id="phoneNumber"
+                    type="tel"
+                    value={newPatient.phoneNumber}
+                    onChange={(e) =>
+                      setNewPatient({
+                        ...newPatient,
+                        phoneNumber: e.target.value,
+                      })
+                    }
+                    placeholder="Enter phone number"
+                    className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="dateOfBirth"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Date of Birth
+                  </Label>
+                  <Input
+                    id="dateOfBirth"
+                    type="date"
+                    value={newPatient.dateOfBirth}
+                    onChange={(e) =>
+                      setNewPatient({
+                        ...newPatient,
+                        dateOfBirth: e.target.value,
+                      })
+                    }
+                    className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="gender"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Gender
+                  </Label>
+                  <Select
+                    value={newPatient.gender}
+                    onValueChange={(value) =>
+                      setNewPatient({ ...newPatient, gender: value })
+                    }
+                  >
+                    <SelectTrigger className="border-2 border-gray-200 focus:border-blue-500 rounded-xl h-12">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="emergencyContact"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Emergency Contact
+                  </Label>
+                  <Input
+                    id="emergencyContact"
+                    value={newPatient.emergencyContact}
+                    onChange={(e) =>
+                      setNewPatient({
+                        ...newPatient,
+                        emergencyContact: e.target.value,
+                      })
+                    }
+                    placeholder="Emergency contact number"
+                    className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="address"
+                  className="text-sm font-semibold text-gray-700"
+                >
+                  Address
+                </Label>
+                <Input
+                  id="address"
+                  value={newPatient.address}
+                  onChange={(e) =>
+                    setNewPatient({ ...newPatient, address: e.target.value })
+                  }
+                  placeholder="Enter full address"
+                  className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="medicalHistory"
+                  className="text-sm font-semibold text-gray-700"
+                >
+                  Medical History
+                </Label>
+                <Textarea
+                  id="medicalHistory"
+                  value={newPatient.medicalHistory}
+                  onChange={(e) =>
+                    setNewPatient({
+                      ...newPatient,
+                      medicalHistory: e.target.value,
+                    })
+                  }
+                  rows={3}
+                  placeholder="Enter relevant medical history..."
+                  className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl"
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowNewPatientForm(false);
+                    setNewPatient({
+                      firstName: "",
+                      lastName: "",
+                      phoneNumber: "",
+                      dateOfBirth: "",
+                      gender: "",
+                      address: "",
+                      emergencyContact: "",
+                      medicalHistory: "",
+                    });
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreatePatient}
+                  disabled={
+                    createPatientMutation.isPending ||
+                    !newPatient.firstName ||
+                    !newPatient.lastName ||
+                    !newPatient.phoneNumber
+                  }
+                  className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700"
+                >
+                  {createPatientMutation.isPending ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Creating Patient...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Create Patient
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Edit Test Dialog */}
         <Dialog open={!!editingTest} onOpenChange={() => setEditingTest(null)}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
