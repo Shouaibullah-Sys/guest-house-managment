@@ -158,11 +158,12 @@ export default function LaboratoryDailyRecord() {
     },
   });
 
-  // Fetch today's lab tests
+  // Fetch today's lab tests - updated to use today's date
   const { data: todaysTests } = useQuery({
     queryKey: ["lab-tests", "today"],
     queryFn: async () => {
-      const response = await fetch("/api/laboratory/tests");
+      const today = new Date().toISOString().split("T")[0];
+      const response = await fetch(`/api/laboratory/tests?date=${today}`);
       if (!response.ok) throw new Error("Failed to fetch lab tests");
       return response.json();
     },
@@ -373,6 +374,15 @@ export default function LaboratoryDailyRecord() {
   const doctors = doctorsData?.doctors || [];
   const patients = searchResults?.patients || [];
   const tests = todaysTests?.tests || [];
+
+  // Get today's date for display
+  const today = new Date();
+  const todayFormatted = today.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 
   // Mobile-friendly test card component
   const MobileTestCard = ({ test }: { test: LaboratoryTestWithDetails }) => (
@@ -2103,7 +2113,7 @@ export default function LaboratoryDailyRecord() {
               <div className="bg-white/20 p-2 rounded-lg">
                 <Calendar className="h-5 w-5" />
               </div>
-              Today's Laboratory Tests
+              Today's Laboratory Records - {todayFormatted}
             </CardTitle>
             <CardDescription className="text-purple-100">
               {tests.length} {tests.length === 1 ? "test" : "tests"} recorded

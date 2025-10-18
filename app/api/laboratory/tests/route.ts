@@ -3,14 +3,34 @@ import { auth } from "@clerk/nextjs/server";
 import { db } from "@/db/index";
 import { laboratoryTests, patients, doctors } from "@/db/schema";
 import { currentUser } from "@clerk/nextjs/server";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and, gte, lt } from "drizzle-orm";
 
-// GET - Fetch all lab tests with patient and doctor info
+// GET - Fetch lab tests with optional date filtering
 export async function GET(req: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const date = searchParams.get("date");
+
+    let whereConditions = [];
+
+    // If date parameter is provided, filter by that date
+    if (date) {
+      const targetDate = new Date(date);
+      const nextDate = new Date(targetDate);
+      nextDate.setDate(nextDate.getDate() + 1);
+
+      // Filter tests created on the specific date
+      whereConditions.push(
+        and(
+          gte(laboratoryTests.createdAt, targetDate),
+          lt(laboratoryTests.createdAt, nextDate)
+        )
+      );
     }
 
     const testsData = await db
@@ -38,6 +58,7 @@ export async function GET(req: NextRequest) {
       .from(laboratoryTests)
       .leftJoin(patients, eq(laboratoryTests.patientId, patients.id))
       .leftJoin(doctors, eq(laboratoryTests.doctorId, doctors.id))
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(laboratoryTests.createdAt))
       .limit(100);
 
