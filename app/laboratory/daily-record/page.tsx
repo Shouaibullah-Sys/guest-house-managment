@@ -1,7 +1,6 @@
-// app/laboratory/daily-record/page.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
@@ -52,8 +51,12 @@ import {
   User,
   Stethoscope,
   Smartphone,
-  Mail,
   MapPin,
+  FlaskConical,
+  Heart,
+  Droplets,
+  X,
+  Save,
 } from "lucide-react";
 import {
   Patient,
@@ -236,20 +239,16 @@ export default function LaboratoryDailyRecord() {
       testId: number;
       testData: EditTestForm;
     }) => {
-      console.log("Sending update request for test:", testId, testData);
+      console.log("Updating test:", testId, testData);
 
       const response = await fetch(`/api/laboratory/tests/${testId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(testData),
       });
-      ``;
-
-      console.log("Response status:", response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Error response:", errorText);
         throw new Error(
           `Failed to update lab test: ${response.status} ${errorText}`
         );
@@ -257,8 +256,7 @@ export default function LaboratoryDailyRecord() {
 
       return response.json();
     },
-    onSuccess: (data) => {
-      console.log("Test updated successfully:", data);
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lab-tests"] });
       setEditingTest(null);
       setEditForm({
@@ -272,9 +270,6 @@ export default function LaboratoryDailyRecord() {
         amountPaid: 0,
         paymentStatus: "pending",
       });
-
-      // Show success message
-      alert("Test updated successfully!");
     },
     onError: (error: Error) => {
       console.error("Error updating test:", error);
@@ -345,7 +340,6 @@ export default function LaboratoryDailyRecord() {
 
   const handleUpdateTest = () => {
     if (editingTest) {
-      console.log("Updating test:", editingTest.id, editForm); // Debug log
       updateTestMutation.mutate({
         testId: editingTest.id,
         testData: editForm,
@@ -477,7 +471,7 @@ export default function LaboratoryDailyRecord() {
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50">
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50 pt-24">
       {/* Animated Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 floating-icon">
@@ -629,319 +623,26 @@ export default function LaboratoryDailyRecord() {
           </CardContent>
         </Card>
 
-        {/* Rest of your existing JSX for forms and tables remains the same */}
-        {/* ... (keep all the existing form JSX exactly as it was) ... */}
-
-        {/* Create New Test Dialog */}
-        <Dialog open={showNewTestForm} onOpenChange={setShowNewTestForm}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-lg p-6 -m-6 mb-6">
-              <DialogTitle className="flex items-center gap-3 text-xl text-white">
-                <Plus className="h-6 w-6" />
-                Create New Laboratory Test
-                {selectedPatient && (
-                  <span>
-                    {" "}
-                    for {selectedPatient.firstName} {selectedPatient.lastName}
-                  </span>
-                )}
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-              {selectedPatient && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <h3 className="font-semibold text-blue-900 mb-2">
-                    Selected Patient
-                  </h3>
-                  <div className="text-sm text-blue-800">
-                    <p>
-                      <strong>Name:</strong> {selectedPatient.firstName}{" "}
-                      {selectedPatient.lastName}
-                    </p>
-                    <p>
-                      <strong>Phone:</strong> {selectedPatient.phoneNumber}
-                    </p>
-                    {selectedPatient.dateOfBirth && (
-                      <p>
-                        <strong>DOB:</strong> {selectedPatient.dateOfBirth}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="testType"
-                    className="text-sm font-semibold text-gray-700"
-                  >
-                    Test Type *
-                  </Label>
-                  <Select
-                    value={newTest.testType}
-                    onValueChange={(value) =>
-                      setNewTest({ ...newTest, testType: value })
-                    }
-                  >
-                    <SelectTrigger className="border-2 border-gray-200 focus:border-green-500 rounded-xl h-12">
-                      <SelectValue placeholder="Select test type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="blood">Blood Test</SelectItem>
-                      <SelectItem value="urine">Urine Test</SelectItem>
-                      <SelectItem value="stool">Stool Test</SelectItem>
-                      <SelectItem value="biochemistry">Biochemistry</SelectItem>
-                      <SelectItem value="hematology">Hematology</SelectItem>
-                      <SelectItem value="microbiology">Microbiology</SelectItem>
-                      <SelectItem value="immunology">Immunology</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="testName"
-                    className="text-sm font-semibold text-gray-700"
-                  >
-                    Test Name *
-                  </Label>
-                  <Input
-                    id="testName"
-                    value={newTest.testName}
-                    onChange={(e) =>
-                      setNewTest({ ...newTest, testName: e.target.value })
-                    }
-                    placeholder="Enter test name"
-                    className="border-2 border-gray-200 focus:border-green-500 transition-colors rounded-xl h-12"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="testDate"
-                    className="text-sm font-semibold text-gray-700"
-                  >
-                    Test Date
-                  </Label>
-                  <Input
-                    id="testDate"
-                    type="date"
-                    value={newTest.testDate}
-                    onChange={(e) =>
-                      setNewTest({ ...newTest, testDate: e.target.value })
-                    }
-                    className="border-2 border-gray-200 focus:border-green-500 transition-colors rounded-xl h-12"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="referredBy"
-                    className="text-sm font-semibold text-gray-700"
-                  >
-                    Referred By
-                  </Label>
-                  <Select
-                    value={newTest.referredBy}
-                    onValueChange={(value) =>
-                      setNewTest({ ...newTest, referredBy: value })
-                    }
-                  >
-                    <SelectTrigger className="border-2 border-gray-200 focus:border-green-500 rounded-xl h-12">
-                      <SelectValue placeholder="Select referring doctor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {doctors.map((doctor: Doctor) => (
-                        <SelectItem key={doctor.id} value={doctor.name}>
-                          {doctor.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="technician"
-                    className="text-sm font-semibold text-gray-700"
-                  >
-                    Technician
-                  </Label>
-                  <Input
-                    id="technician"
-                    value={newTest.technician}
-                    onChange={(e) =>
-                      setNewTest({ ...newTest, technician: e.target.value })
-                    }
-                    placeholder="Enter technician name"
-                    className="border-2 border-gray-200 focus:border-green-500 transition-colors rounded-xl h-12"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="status"
-                    className="text-sm font-semibold text-gray-700"
-                  >
-                    Status
-                  </Label>
-                  <Select
-                    value={newTest.status}
-                    onValueChange={(
-                      value: "pending" | "completed" | "cancelled"
-                    ) => setNewTest({ ...newTest, status: value })}
-                  >
-                    <SelectTrigger className="border-2 border-gray-200 focus:border-green-500 rounded-xl h-12">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="amountCharged"
-                    className="text-sm font-semibold text-gray-700"
-                  >
-                    Amount Charged (AFN)
-                  </Label>
-                  <Input
-                    id="amountCharged"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={newTest.amountCharged}
-                    onChange={(e) =>
-                      setNewTest({
-                        ...newTest,
-                        amountCharged: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    placeholder="0.00"
-                    className="border-2 border-gray-200 focus:border-green-500 transition-colors rounded-xl h-12"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="amountPaid"
-                    className="text-sm font-semibold text-gray-700"
-                  >
-                    Amount Paid (AFN)
-                  </Label>
-                  <Input
-                    id="amountPaid"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={newTest.amountPaid}
-                    onChange={(e) =>
-                      setNewTest({
-                        ...newTest,
-                        amountPaid: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    placeholder="0.00"
-                    className="border-2 border-gray-200 focus:border-green-500 transition-colors rounded-xl h-12"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label
-                  htmlFor="notes"
-                  className="text-sm font-semibold text-gray-700"
-                >
-                  Notes
-                </Label>
-                <Textarea
-                  id="notes"
-                  value={newTest.notes}
-                  onChange={(e) =>
-                    setNewTest({ ...newTest, notes: e.target.value })
-                  }
-                  rows={3}
-                  placeholder="Additional notes..."
-                  className="border-2 border-gray-200 focus:border-green-500 transition-colors rounded-xl"
-                />
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowNewTestForm(false);
-                    setSelectedPatient(null);
-                    setNewTest({
-                      patientId: 0,
-                      testType: "",
-                      testName: "",
-                      testDate: new Date().toISOString().split("T")[0],
-                      results: "",
-                      status: "pending",
-                      notes: "",
-                      referredBy: "",
-                      technician: user?.firstName || "",
-                      amountCharged: 0,
-                      amountPaid: 0,
-                      paymentStatus: "pending",
-                    });
-                  }}
-                  className="w-full sm:w-auto"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleCreateTest}
-                  disabled={
-                    createTestMutation.isPending ||
-                    !newTest.testType ||
-                    !newTest.testName ||
-                    !selectedPatient
-                  }
-                  className="w-full sm:w-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-                >
-                  {createTestMutation.isPending ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Creating Test...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Test
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Create New Patient Dialog */}
-        <Dialog open={showNewPatientForm} onOpenChange={setShowNewPatientForm}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader className="bg-gradient-to-r from-blue-600 to-teal-600 text-white rounded-t-lg p-6 -m-6 mb-6">
-              <DialogTitle className="flex items-center gap-3 text-xl text-white">
+        {/* New Patient Form */}
+        {showNewPatientForm && (
+          <Card className="mb-6 shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
+            <CardHeader className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-t-xl py-6">
+              <CardTitle className="flex items-center gap-3 text-xl text-white">
                 <UserPlus className="h-6 w-6" />
                 Create New Patient
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+              </CardTitle>
+              <CardDescription className="text-purple-100">
+                Enter patient details to create a new record in the system
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label
                     htmlFor="firstName"
-                    className="text-sm font-semibold text-gray-700"
+                    className="text-sm font-semibold text-gray-700 flex items-center gap-2"
                   >
+                    <User className="h-4 w-4" />
                     First Name *
                   </Label>
                   <Input
@@ -953,16 +654,16 @@ export default function LaboratoryDailyRecord() {
                         firstName: e.target.value,
                       })
                     }
-                    placeholder="Enter first name"
+                    required
                     className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
                   />
                 </div>
-
                 <div className="space-y-2">
                   <Label
                     htmlFor="lastName"
-                    className="text-sm font-semibold text-gray-700"
+                    className="text-sm font-semibold text-gray-700 flex items-center gap-2"
                   >
+                    <User className="h-4 w-4" />
                     Last Name *
                   </Label>
                   <Input
@@ -971,20 +672,20 @@ export default function LaboratoryDailyRecord() {
                     onChange={(e) =>
                       setNewPatient({ ...newPatient, lastName: e.target.value })
                     }
-                    placeholder="Enter last name"
+                    required
                     className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
                   />
                 </div>
-
                 <div className="space-y-2">
                   <Label
-                    htmlFor="phoneNumber"
-                    className="text-sm font-semibold text-gray-700"
+                    htmlFor="patientPhone"
+                    className="text-sm font-semibold text-gray-700 flex items-center gap-2"
                   >
+                    <Phone className="h-4 w-4" />
                     Phone Number *
                   </Label>
                   <Input
-                    id="phoneNumber"
+                    id="patientPhone"
                     type="tel"
                     value={newPatient.phoneNumber}
                     onChange={(e) =>
@@ -993,16 +694,16 @@ export default function LaboratoryDailyRecord() {
                         phoneNumber: e.target.value,
                       })
                     }
-                    placeholder="Enter phone number"
+                    required
                     className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
                   />
                 </div>
-
                 <div className="space-y-2">
                   <Label
                     htmlFor="dateOfBirth"
-                    className="text-sm font-semibold text-gray-700"
+                    className="text-sm font-semibold text-gray-700 flex items-center gap-2"
                   >
+                    <Calendar className="h-4 w-4" />
                     Date of Birth
                   </Label>
                   <Input
@@ -1018,12 +719,12 @@ export default function LaboratoryDailyRecord() {
                     className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
                   />
                 </div>
-
                 <div className="space-y-2">
                   <Label
                     htmlFor="gender"
-                    className="text-sm font-semibold text-gray-700"
+                    className="text-sm font-semibold text-gray-700 flex items-center gap-2"
                   >
+                    <User className="h-4 w-4" />
                     Gender
                   </Label>
                   <Select
@@ -1032,7 +733,7 @@ export default function LaboratoryDailyRecord() {
                       setNewPatient({ ...newPatient, gender: value })
                     }
                   >
-                    <SelectTrigger className="border-2 border-gray-200 focus:border-blue-500 rounded-xl h-12">
+                    <SelectTrigger className="h-12 border-2 border-gray-200 focus:border-blue-500 rounded-xl">
                       <SelectValue placeholder="Select gender" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1042,34 +743,14 @@ export default function LaboratoryDailyRecord() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="emergencyContact"
-                    className="text-sm font-semibold text-gray-700"
-                  >
-                    Emergency Contact
-                  </Label>
-                  <Input
-                    id="emergencyContact"
-                    value={newPatient.emergencyContact}
-                    onChange={(e) =>
-                      setNewPatient({
-                        ...newPatient,
-                        emergencyContact: e.target.value,
-                      })
-                    }
-                    placeholder="Emergency contact number"
-                    className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
-                  />
-                </div>
               </div>
 
               <div className="space-y-2">
                 <Label
                   htmlFor="address"
-                  className="text-sm font-semibold text-gray-700"
+                  className="text-sm font-semibold text-gray-700 flex items-center gap-2"
                 >
+                  <MapPin className="h-4 w-4" />
                   Address
                 </Label>
                 <Input
@@ -1078,7 +759,27 @@ export default function LaboratoryDailyRecord() {
                   onChange={(e) =>
                     setNewPatient({ ...newPatient, address: e.target.value })
                   }
-                  placeholder="Enter full address"
+                  className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="emergencyContact"
+                  className="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                >
+                  <Phone className="h-4 w-4" />
+                  Emergency Contact
+                </Label>
+                <Input
+                  id="emergencyContact"
+                  value={newPatient.emergencyContact}
+                  onChange={(e) =>
+                    setNewPatient({
+                      ...newPatient,
+                      emergencyContact: e.target.value,
+                    })
+                  }
                   className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
                 />
               </div>
@@ -1086,8 +787,9 @@ export default function LaboratoryDailyRecord() {
               <div className="space-y-2">
                 <Label
                   htmlFor="medicalHistory"
-                  className="text-sm font-semibold text-gray-700"
+                  className="text-sm font-semibold text-gray-700 flex items-center gap-2"
                 >
+                  <Stethoscope className="h-4 w-4" />
                   Medical History
                 </Label>
                 <Textarea
@@ -1100,40 +802,15 @@ export default function LaboratoryDailyRecord() {
                     })
                   }
                   rows={3}
-                  placeholder="Enter relevant medical history..."
                   className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl"
                 />
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
                 <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowNewPatientForm(false);
-                    setNewPatient({
-                      firstName: "",
-                      lastName: "",
-                      phoneNumber: "",
-                      dateOfBirth: "",
-                      gender: "",
-                      address: "",
-                      emergencyContact: "",
-                      medicalHistory: "",
-                    });
-                  }}
-                  className="w-full sm:w-auto"
-                >
-                  Cancel
-                </Button>
-                <Button
                   onClick={handleCreatePatient}
-                  disabled={
-                    createPatientMutation.isPending ||
-                    !newPatient.firstName ||
-                    !newPatient.lastName ||
-                    !newPatient.phoneNumber
-                  }
-                  className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700"
+                  disabled={createPatientMutation.isPending}
+                  className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
                 >
                   {createPatientMutation.isPending ? (
                     <>
@@ -1141,16 +818,1023 @@ export default function LaboratoryDailyRecord() {
                       Creating Patient...
                     </>
                   ) : (
-                    <>
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Create Patient
-                    </>
+                    "Create Patient"
                   )}
                 </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowNewPatientForm(false)}
+                  className="w-full sm:w-auto"
+                >
+                  Cancel
+                </Button>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Lab Test Creation Form */}
+        {showNewTestForm && selectedPatient && (
+          <Card className="mb-6 shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
+            <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-xl py-6">
+              <CardTitle className="flex items-center gap-3 text-xl text-white">
+                <TestTube className="h-6 w-6" />
+                Create Laboratory Test for {selectedPatient.firstName}{" "}
+                {selectedPatient.lastName}
+              </CardTitle>
+              <CardDescription className="text-green-100">
+                Complete all required test information and parameters
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 p-6">
+              {/* Basic Test Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="testType"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Test Type *
+                  </Label>
+                  <Select
+                    value={newTest.testType}
+                    onValueChange={(value) => {
+                      setNewTest({
+                        ...newTest,
+                        testType: value,
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="border-2 border-gray-200 focus:border-blue-500 rounded-xl h-12">
+                      <SelectValue placeholder="Select test type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="blood">Blood Test</SelectItem>
+                      <SelectItem value="urine">Urine Test</SelectItem>
+                      <SelectItem value="stool">Stool Test</SelectItem>
+                      <SelectItem value="biochemistry">Biochemistry</SelectItem>
+                      <SelectItem value="hematology">Hematology</SelectItem>
+                      <SelectItem value="microbiology">Microbiology</SelectItem>
+                      <SelectItem value="immunology">Immunology</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="testName"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Test Name *
+                  </Label>
+                  <Input
+                    id="testName"
+                    value={newTest.testName}
+                    onChange={(e) =>
+                      setNewTest({ ...newTest, testName: e.target.value })
+                    }
+                    placeholder="e.g., Complete Blood Count"
+                    required
+                    className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="testDate"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Test Date
+                  </Label>
+                  <Input
+                    id="testDate"
+                    type="date"
+                    value={newTest.testDate}
+                    onChange={(e) =>
+                      setNewTest({ ...newTest, testDate: e.target.value })
+                    }
+                    className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="doctor"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Referred By (Doctor)
+                  </Label>
+                  <Select
+                    value={newTest.doctorId?.toString()}
+                    onValueChange={(value) =>
+                      setNewTest({ ...newTest, doctorId: parseInt(value) })
+                    }
+                  >
+                    <SelectTrigger className="border-2 border-gray-200 focus:border-blue-500 rounded-xl h-12">
+                      <SelectValue placeholder="Select referring doctor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {doctors.map((doctor: Doctor) => (
+                        <SelectItem
+                          key={doctor.id}
+                          value={doctor.id.toString()}
+                        >
+                          {doctor.name}
+                          {doctor.specialization &&
+                            ` (${doctor.specialization})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="technician"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Technician
+                  </Label>
+                  <Input
+                    id="technician"
+                    value={newTest.technician}
+                    onChange={(e) =>
+                      setNewTest({ ...newTest, technician: e.target.value })
+                    }
+                    placeholder="Lab technician name"
+                    className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="status"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Status
+                  </Label>
+                  <Select
+                    value={newTest.status}
+                    onValueChange={(
+                      value: "pending" | "completed" | "cancelled"
+                    ) => setNewTest({ ...newTest, status: value })}
+                  >
+                    <SelectTrigger className="border-2 border-gray-200 focus:border-blue-500 rounded-xl h-12">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="amountCharged"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Amount Charged (AFN)
+                  </Label>
+                  <Input
+                    id="amountCharged"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newTest.amountCharged || ""}
+                    onChange={(e) =>
+                      setNewTest({
+                        ...newTest,
+                        amountCharged: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    placeholder="0.00"
+                    className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="amountPaid"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Amount Paid (AFN)
+                  </Label>
+                  <Input
+                    id="amountPaid"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newTest.amountPaid || ""}
+                    onChange={(e) =>
+                      setNewTest({
+                        ...newTest,
+                        amountPaid: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    placeholder="0.00"
+                    className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl h-12"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="paymentStatus"
+                    className="text-sm font-semibold text-gray-700"
+                  >
+                    Payment Status
+                  </Label>
+                  <Select
+                    value={newTest.paymentStatus}
+                    onValueChange={(
+                      value: "pending" | "paid" | "partial" | "waived"
+                    ) => setNewTest({ ...newTest, paymentStatus: value })}
+                  >
+                    <SelectTrigger className="border-2 border-gray-200 focus:border-blue-500 rounded-xl h-12">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                      <SelectItem value="partial">Partial</SelectItem>
+                      <SelectItem value="waived">Waived</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Dynamic Test Sections */}
+
+              {/* Blood Test Fields */}
+              {newTest.testType === "blood" && (
+                <div className="border-2 border-red-200 rounded-xl p-6 bg-red-50/50">
+                  <h3 className="text-lg font-semibold text-red-900 mb-4 flex items-center gap-2">
+                    <Heart className="h-5 w-5" />
+                    Blood Test Parameters
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="hemoglobin">Hemoglobin (g/dL)</Label>
+                      <Input
+                        id="hemoglobin"
+                        value={newTest.blood?.hemoglobin || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            blood: {
+                              ...newTest.blood,
+                              hemoglobin: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Hemoglobin"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="rbcCount">RBC Count (million/mm³)</Label>
+                      <Input
+                        id="rbcCount"
+                        value={newTest.blood?.rbcCount || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            blood: {
+                              ...newTest.blood,
+                              rbcCount: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="RBC Count"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="wbcCount">WBC Count (/mm³)</Label>
+                      <Input
+                        id="wbcCount"
+                        value={newTest.blood?.wbcCount || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            blood: {
+                              ...newTest.blood,
+                              wbcCount: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="WBC Count"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="plateletCount">
+                        Platelet Count (/mm³)
+                      </Label>
+                      <Input
+                        id="plateletCount"
+                        value={newTest.blood?.plateletCount || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            blood: {
+                              ...newTest.blood,
+                              plateletCount: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Platelet Count"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="mcv">MCV (fL)</Label>
+                      <Input
+                        id="mcv"
+                        value={newTest.blood?.mcv || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            blood: {
+                              ...newTest.blood,
+                              mcv: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="MCV"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="mch">MCH (pg)</Label>
+                      <Input
+                        id="mch"
+                        value={newTest.blood?.mch || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            blood: {
+                              ...newTest.blood,
+                              mch: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="MCH"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Urine Test Fields */}
+              {newTest.testType === "urine" && (
+                <div className="border-2 border-yellow-200 rounded-xl p-6 bg-yellow-50/50">
+                  <h3 className="text-lg font-semibold text-yellow-900 mb-4 flex items-center gap-2">
+                    <Droplets className="h-5 w-5" />
+                    Urine Test Parameters
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="color">Color</Label>
+                      <Input
+                        id="color"
+                        value={newTest.urine?.color || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            urine: { ...newTest.urine, color: e.target.value },
+                          })
+                        }
+                        placeholder="Color"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="appearance">Appearance</Label>
+                      <Input
+                        id="appearance"
+                        value={newTest.urine?.appearance || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            urine: {
+                              ...newTest.urine,
+                              appearance: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Appearance"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="specificGravity">Specific Gravity</Label>
+                      <Input
+                        id="specificGravity"
+                        value={newTest.urine?.specificGravity || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            urine: {
+                              ...newTest.urine,
+                              specificGravity: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Specific Gravity"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="ph">pH</Label>
+                      <Input
+                        id="ph"
+                        value={newTest.urine?.ph || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            urine: { ...newTest.urine, ph: e.target.value },
+                          })
+                        }
+                        placeholder="pH"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="protein">Protein</Label>
+                      <Input
+                        id="protein"
+                        value={newTest.urine?.protein || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            urine: {
+                              ...newTest.urine,
+                              protein: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Protein"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="glucose">Glucose</Label>
+                      <Input
+                        id="glucose"
+                        value={newTest.urine?.glucose || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            urine: {
+                              ...newTest.urine,
+                              glucose: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Glucose"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Stool Test Fields */}
+              {newTest.testType === "stool" && (
+                <div className="border-2 border-amber-200 rounded-xl p-6 bg-amber-50/50">
+                  <h3 className="text-lg font-semibold text-amber-900 mb-4 flex items-center gap-2">
+                    <FlaskConical className="h-5 w-5" />
+                    Stool Test Parameters
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="stoolColor">Color</Label>
+                      <Input
+                        id="stoolColor"
+                        value={newTest.stool?.color || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            stool: { ...newTest.stool, color: e.target.value },
+                          })
+                        }
+                        placeholder="Color"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="consistency">Consistency</Label>
+                      <Input
+                        id="consistency"
+                        value={newTest.stool?.consistency || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            stool: {
+                              ...newTest.stool,
+                              consistency: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Consistency"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="mucus">Mucus</Label>
+                      <Input
+                        id="mucus"
+                        value={newTest.stool?.mucus || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            stool: { ...newTest.stool, mucus: e.target.value },
+                          })
+                        }
+                        placeholder="Mucus"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="occultBlood">Occult Blood</Label>
+                      <Input
+                        id="occultBlood"
+                        value={newTest.stool?.occultBlood || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            stool: {
+                              ...newTest.stool,
+                              occultBlood: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Occult Blood"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="parasites">Parasites</Label>
+                      <Input
+                        id="parasites"
+                        value={newTest.stool?.parasites || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            stool: {
+                              ...newTest.stool,
+                              parasites: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Parasites"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Biochemistry Test Fields */}
+              {newTest.testType === "biochemistry" && (
+                <div className="border-2 border-blue-200 rounded-xl p-6 bg-blue-50/50">
+                  <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Biochemistry Parameters
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="glucose">Glucose (mg/dL)</Label>
+                      <Input
+                        id="glucose"
+                        value={newTest.biochemistry?.glucose || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            biochemistry: {
+                              ...newTest.biochemistry,
+                              glucose: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Glucose level"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="urea">Urea (mg/dL)</Label>
+                      <Input
+                        id="urea"
+                        value={newTest.biochemistry?.urea || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            biochemistry: {
+                              ...newTest.biochemistry,
+                              urea: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Urea"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="creatinine">Creatinine (mg/dL)</Label>
+                      <Input
+                        id="creatinine"
+                        value={newTest.biochemistry?.creatinine || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            biochemistry: {
+                              ...newTest.biochemistry,
+                              creatinine: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Creatinine"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="cholesterol">Cholesterol (mg/dL)</Label>
+                      <Input
+                        id="cholesterol"
+                        value={newTest.biochemistry?.cholesterol || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            biochemistry: {
+                              ...newTest.biochemistry,
+                              cholesterol: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Cholesterol"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="triglycerides">
+                        Triglycerides (mg/dL)
+                      </Label>
+                      <Input
+                        id="triglycerides"
+                        value={newTest.biochemistry?.triglycerides || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            biochemistry: {
+                              ...newTest.biochemistry,
+                              triglycerides: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Triglycerides"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sgot">SGOT / AST (U/L)</Label>
+                      <Input
+                        id="sgot"
+                        value={newTest.biochemistry?.sgot || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            biochemistry: {
+                              ...newTest.biochemistry,
+                              sgot: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="SGOT / AST"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sgpt">SGPT / ALT (U/L)</Label>
+                      <Input
+                        id="sgpt"
+                        value={newTest.biochemistry?.sgpt || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            biochemistry: {
+                              ...newTest.biochemistry,
+                              sgpt: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="SGPT / ALT"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Hematology Test Fields */}
+              {newTest.testType === "hematology" && (
+                <div className="border-2 border-purple-200 rounded-xl p-6 bg-purple-50/50">
+                  <h3 className="text-lg font-semibold text-purple-900 mb-4 flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Hematology Parameters
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="hb">Hemoglobin (g/dL)</Label>
+                      <Input
+                        id="hb"
+                        value={newTest.hematology?.hb || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            hematology: {
+                              ...newTest.hematology,
+                              hb: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Hemoglobin"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="rbc">RBC Count (million/mm³)</Label>
+                      <Input
+                        id="rbc"
+                        value={newTest.hematology?.rbc || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            hematology: {
+                              ...newTest.hematology,
+                              rbc: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="RBC Count"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="wbc">WBC Count (/mm³)</Label>
+                      <Input
+                        id="wbc"
+                        value={newTest.hematology?.wbc || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            hematology: {
+                              ...newTest.hematology,
+                              wbc: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="WBC Count"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="platelets">Platelet Count (/mm³)</Label>
+                      <Input
+                        id="platelets"
+                        value={newTest.hematology?.platelets || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            hematology: {
+                              ...newTest.hematology,
+                              platelets: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Platelet Count"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="pcv">Packed Cell Volume (%)</Label>
+                      <Input
+                        id="pcv"
+                        value={newTest.hematology?.pcv || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            hematology: {
+                              ...newTest.hematology,
+                              pcv: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="PCV"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Microbiology Test Fields */}
+              {newTest.testType === "microbiology" && (
+                <div className="border-2 border-green-200 rounded-xl p-6 bg-green-50/50">
+                  <h3 className="text-lg font-semibold text-green-900 mb-4 flex items-center gap-2">
+                    <Microscope className="h-5 w-5" />
+                    Microbiology Parameters
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="specimen">Specimen Type</Label>
+                      <Input
+                        id="specimen"
+                        value={newTest.microbiology?.specimen || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            microbiology: {
+                              ...newTest.microbiology,
+                              specimen: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="e.g., Blood, Urine, Sputum"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="organism">Organism Isolated</Label>
+                      <Input
+                        id="organism"
+                        value={newTest.microbiology?.organism || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            microbiology: {
+                              ...newTest.microbiology,
+                              organism: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Bacteria/Fungus name"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label htmlFor="sensitivity">
+                        Antibiotic Sensitivity
+                      </Label>
+                      <Textarea
+                        id="sensitivity"
+                        value={newTest.microbiology?.sensitivity || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            microbiology: {
+                              ...newTest.microbiology,
+                              sensitivity: e.target.value,
+                            },
+                          })
+                        }
+                        rows={3}
+                        placeholder="Enter antibiotic sensitivity pattern..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Immunology Test Fields */}
+              {newTest.testType === "immunology" && (
+                <div className="border-2 border-orange-200 rounded-xl p-6 bg-orange-50/50">
+                  <h3 className="text-lg font-semibold text-orange-900 mb-4 flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Immunology Parameters
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="hbsag">HBsAg</Label>
+                      <Input
+                        id="hbsag"
+                        value={newTest.immunology?.hbsag || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            immunology: {
+                              ...newTest.immunology,
+                              hbsag: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Reactive / Non-Reactive"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="hiv">HIV</Label>
+                      <Input
+                        id="hiv"
+                        value={newTest.immunology?.hiv || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            immunology: {
+                              ...newTest.immunology,
+                              hiv: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Reactive / Non-Reactive"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="hcv">HCV</Label>
+                      <Input
+                        id="hcv"
+                        value={newTest.immunology?.hcv || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            immunology: {
+                              ...newTest.immunology,
+                              hcv: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Reactive / Non-Reactive"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="crp">CRP (mg/L)</Label>
+                      <Input
+                        id="crp"
+                        value={newTest.immunology?.crp || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            immunology: {
+                              ...newTest.immunology,
+                              crp: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="CRP Level"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label htmlFor="raTest">RA Test</Label>
+                      <Input
+                        id="raTest"
+                        value={newTest.immunology?.raTest || ""}
+                        onChange={(e) =>
+                          setNewTest({
+                            ...newTest,
+                            immunology: {
+                              ...newTest.immunology,
+                              raTest: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="Positive / Negative"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Test Results */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="results"
+                  className="text-sm font-semibold text-gray-700"
+                >
+                  Test Results
+                </Label>
+                <Textarea
+                  id="results"
+                  value={newTest.results}
+                  onChange={(e) =>
+                    setNewTest({ ...newTest, results: e.target.value })
+                  }
+                  rows={4}
+                  placeholder="Enter detailed test results and findings..."
+                  className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl"
+                />
+              </div>
+
+              {/* Notes Section */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="notes"
+                  className="text-sm font-semibold text-gray-700"
+                >
+                  Clinical Notes & Observations
+                </Label>
+                <Textarea
+                  id="notes"
+                  value={newTest.notes}
+                  onChange={(e) =>
+                    setNewTest({ ...newTest, notes: e.target.value })
+                  }
+                  rows={3}
+                  placeholder="Additional clinical notes, observations, or special instructions..."
+                  className="border-2 border-gray-200 focus:border-blue-500 transition-colors rounded-xl"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
+                <Button
+                  onClick={handleCreateTest}
+                  disabled={createTestMutation.isPending}
+                  className="w-full sm:w-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                >
+                  {createTestMutation.isPending ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Creating Test...
+                    </>
+                  ) : (
+                    "Create Test"
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowNewTestForm(false)}
+                  className="w-full sm:w-auto"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Edit Test Dialog */}
         <Dialog open={!!editingTest} onOpenChange={() => setEditingTest(null)}>
@@ -1387,6 +2071,7 @@ export default function LaboratoryDailyRecord() {
                   }}
                   className="w-full sm:w-auto"
                 >
+                  <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
                 <Button
@@ -1400,7 +2085,10 @@ export default function LaboratoryDailyRecord() {
                       Updating Test...
                     </>
                   ) : (
-                    "Update Test"
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Update Test
+                    </>
                   )}
                 </Button>
               </div>

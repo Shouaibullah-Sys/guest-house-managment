@@ -641,7 +641,7 @@ export default function PatientPortal() {
                   <div className="flex-1">
                     <Label
                       htmlFor="pin"
-                      className="text-sm font-semibold text-gray-700 mb-3 block flex items-center gap-2"
+                      className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2"
                     >
                       پین بیمار
                       <Shield className="h-4 w-4" />

@@ -294,7 +294,6 @@ const Header = () => {
                 );
               })}
             </nav>
-
             {/* Additional Mobile Info */}
             <div className="mt-6 pt-4 border-t border-white/20 px-4">
               <SignedIn>

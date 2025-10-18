@@ -33,6 +33,10 @@ import {
   UserCog,
   DollarSign,
   TrendingUp,
+  Heart,
+  Droplets,
+  AlertCircle,
+  FlaskConical,
 } from "lucide-react";
 import { gsap } from "gsap";
 
@@ -43,6 +47,22 @@ interface DashboardStats {
   unpaidTests: number;
   totalRevenue: number;
   todayRevenue: number;
+  recentTests: any[];
+}
+
+interface LaboratoryTest {
+  id: number;
+  testType: string;
+  testName: string;
+  status: string;
+  amountPaid: number;
+  paymentStatus: string;
+  testDate: string;
+  createdAt: string;
+  patient?: {
+    firstName: string;
+    lastName: string;
+  };
 }
 
 export default function LaboratoryDashboard() {
@@ -55,8 +75,10 @@ export default function LaboratoryDashboard() {
     unpaidTests: 0,
     totalRevenue: 0,
     todayRevenue: 0,
+    recentTests: [],
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Refs for GSAP animations
   const heroRef = useRef(null);
@@ -86,14 +108,14 @@ export default function LaboratoryDashboard() {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
+        setError(null);
 
         // Fetch laboratory tests data
         const testsResponse = await fetch("/api/laboratory/tests");
+        if (!testsResponse.ok) {
+          throw new Error("Failed to fetch laboratory tests");
+        }
         const testsData = await testsResponse.json();
-
-        // Fetch expenses data
-        const expensesResponse = await fetch("/api/laboratory/expenses");
-        const expensesData = await expensesResponse.json();
 
         // Calculate statistics from real data
         const currentDate = new Date();
@@ -103,41 +125,64 @@ export default function LaboratoryDashboard() {
           currentDate.getDate()
         );
 
-        const tests = testsData.tests || [];
-        const expenses = expensesData || [];
+        const tests: LaboratoryTest[] = testsData.tests || [];
 
         // Calculate test statistics
         const totalTests = tests.length;
         const pendingResults = tests.filter(
-          (test: any) => test.status === "pending"
+          (test) => test.status === "pending"
         ).length;
-        const completedToday = tests.filter((test: any) => {
-          const testDate = new Date(test.testDate);
+
+        const completedToday = tests.filter((test) => {
+          const testDate = new Date(test.testDate || test.createdAt);
           return (
             test.status === "completed" &&
             testDate >= today &&
             testDate < new Date(today.getTime() + 24 * 60 * 60 * 1000)
           );
         }).length;
+
         const unpaidTests = tests.filter(
-          (test: any) =>
+          (test) =>
             test.paymentStatus === "pending" || test.paymentStatus === "partial"
         ).length;
 
         // Calculate revenue statistics
         const totalRevenue = tests.reduce(
-          (sum: number, test: any) => sum + (test.amountPaid || 0),
+          (sum: number, test: LaboratoryTest) => sum + (test.amountPaid || 0),
           0
         );
+
         const todayRevenue = tests
-          .filter((test: any) => {
-            const testDate = new Date(test.testDate);
+          .filter((test: LaboratoryTest) => {
+            const testDate = new Date(test.testDate || test.createdAt);
             return (
               testDate >= today &&
               testDate < new Date(today.getTime() + 24 * 60 * 60 * 1000)
             );
           })
-          .reduce((sum: number, test: any) => sum + (test.amountPaid || 0), 0);
+          .reduce(
+            (sum: number, test: LaboratoryTest) => sum + (test.amountPaid || 0),
+            0
+          );
+
+        // Get recent tests (last 5)
+        const recentTests = tests
+          .sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+          .slice(0, 5);
+
+        console.log("Dashboard Data:", {
+          totalTests,
+          pendingResults,
+          completedToday,
+          unpaidTests,
+          totalRevenue,
+          todayRevenue,
+          recentTestsCount: recentTests.length,
+        });
 
         setStats({
           totalTests,
@@ -146,15 +191,21 @@ export default function LaboratoryDashboard() {
           unpaidTests,
           totalRevenue,
           todayRevenue,
+          recentTests,
         });
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
+        setError("Failed to load dashboard data. Please try again.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchDashboardData();
+
+    // Refresh data every 2 minutes
+    const interval = setInterval(fetchDashboardData, 120000);
+    return () => clearInterval(interval);
   }, [isLoaded, user]);
 
   // Initialize animations
@@ -210,6 +261,52 @@ export default function LaboratoryDashboard() {
     });
   }, [isLoaded, loading]);
 
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-AF", {
+      style: "currency",
+      currency: "AFN",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  // Get test type icon
+  const getTestTypeIcon = (testType: string) => {
+    switch (testType) {
+      case "blood":
+        return <Heart className="h-4 w-4 text-red-500" />;
+      case "urine":
+        return <Droplets className="h-4 w-4 text-blue-500" />;
+      case "stool":
+        return <FlaskConical className="h-4 w-4 text-amber-500" />;
+      case "biochemistry":
+        return <Activity className="h-4 w-4 text-green-500" />;
+      case "hematology":
+        return <TestTube className="h-4 w-4 text-purple-500" />;
+      case "microbiology":
+        return <Microscope className="h-4 w-4 text-indigo-500" />;
+      case "immunology":
+        return <Shield className="h-4 w-4 text-orange-500" />;
+      default:
+        return <TestTube className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  // Get status badge variant
+  const getStatusVariant = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "default";
+      case "pending":
+        return "secondary";
+      case "cancelled":
+        return "destructive";
+      default:
+        return "outline";
+    }
+  };
+
   if (!isLoaded || loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50">
@@ -222,14 +319,6 @@ export default function LaboratoryDashboard() {
   }
 
   const userRole = user?.publicMetadata?.role as string;
-
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "AFN",
-    }).format(amount / 100); // Assuming amount is in cents
-  };
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50 pt-20">
@@ -257,7 +346,24 @@ export default function LaboratoryDashboard() {
           <DollarSign className="h-8 w-8 text-green-200 opacity-60" />
         </div>
       </div>
+
       <main className="flex-grow container mx-auto p-4 md:p-6 pt-28 relative z-10">
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-red-600" />
+            <p className="text-red-700">{error}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.location.reload()}
+              className="ml-auto"
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+
         {/* Hero Section */}
         <section className="mb-8" ref={heroRef}>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -274,13 +380,21 @@ export default function LaboratoryDashboard() {
                 records.
               </p>
             </div>
-            <div className="mt-4 md:mt-0">
+            <div className="mt-4 md:mt-0 flex items-center gap-3">
               <Badge
                 variant={userRole === "admin" ? "destructive" : "default"}
                 className="text-sm px-3 py-1"
               >
                 {userRole === "admin" ? "Administrator" : "Laboratory Staff"}
               </Badge>
+              <div className="text-sm text-gray-500">
+                {new Date().toLocaleDateString("en-US", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </div>
             </div>
           </div>
         </section>
@@ -290,7 +404,7 @@ export default function LaboratoryDashboard() {
           className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8"
           ref={statsRef}
         >
-          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-lg">
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -300,6 +414,7 @@ export default function LaboratoryDashboard() {
                   <p className="text-2xl md:text-3xl font-bold mt-1">
                     {stats.totalTests}
                   </p>
+                  <p className="text-blue-200 text-xs mt-1">All time</p>
                 </div>
                 <div className="bg-white/20 p-3 rounded-full">
                   <TestTube className="h-6 w-6" />
@@ -308,7 +423,7 @@ export default function LaboratoryDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white border-0 shadow-lg">
+          <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -318,6 +433,7 @@ export default function LaboratoryDashboard() {
                   <p className="text-2xl md:text-3xl font-bold mt-1">
                     {stats.pendingResults}
                   </p>
+                  <p className="text-amber-200 text-xs mt-1">Awaiting review</p>
                 </div>
                 <div className="bg-white/20 p-3 rounded-full">
                   <Clock className="h-6 w-6" />
@@ -326,7 +442,7 @@ export default function LaboratoryDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
+          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -336,6 +452,7 @@ export default function LaboratoryDashboard() {
                   <p className="text-2xl md:text-3xl font-bold mt-1">
                     {stats.completedToday}
                   </p>
+                  <p className="text-green-200 text-xs mt-1">Tests processed</p>
                 </div>
                 <div className="bg-white/20 p-3 rounded-full">
                   <Calendar className="h-6 w-6" />
@@ -344,7 +461,7 @@ export default function LaboratoryDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg">
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -353,6 +470,9 @@ export default function LaboratoryDashboard() {
                   </p>
                   <p className="text-2xl md:text-3xl font-bold mt-1">
                     {stats.unpaidTests}
+                  </p>
+                  <p className="text-purple-200 text-xs mt-1">
+                    Pending payment
                   </p>
                 </div>
                 <div className="bg-white/20 p-3 rounded-full">
@@ -365,7 +485,7 @@ export default function LaboratoryDashboard() {
 
         {/* Revenue Overview */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-0 shadow-lg">
+          <Card className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -386,7 +506,7 @@ export default function LaboratoryDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-cyan-500 to-blue-600 text-white border-0 shadow-lg">
+          <Card className="bg-gradient-to-br from-cyan-500 to-blue-600 text-white border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -436,7 +556,20 @@ export default function LaboratoryDashboard() {
                     Open Daily Records
                   </Link>
                 </Button>
-                <div className="flex gap-2"></div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" asChild>
+                    <Link href="/laboratory/tests">
+                      <Search className="h-4 w-4 mr-2" />
+                      Search Tests
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="flex-1" asChild>
+                    <Link href="/laboratory/patients">
+                      <Users className="h-4 w-4 mr-2" />
+                      Patients
+                    </Link>
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -448,13 +581,13 @@ export default function LaboratoryDashboard() {
                 <div className="bg-white/20 p-2 rounded-lg">
                   <DollarSign className="h-5 w-5" />
                 </div>
-                Daily Expenses
+                Financial Management
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <p className="text-gray-600 mb-4 text-sm leading-relaxed">
                 Track laboratory expenses, manage payments to doctors, and
-                monitor operational costs.
+                monitor operational costs and revenue.
               </p>
               <div className="space-y-3">
                 <Button
@@ -466,6 +599,20 @@ export default function LaboratoryDashboard() {
                     Manage Expenses
                   </Link>
                 </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" asChild>
+                    <Link href="/laboratory/reports">
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Reports
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="flex-1" asChild>
+                    <Link href="/laboratory/payments">
+                      <Download className="h-4 w-4 mr-2" />
+                      Payments
+                    </Link>
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -495,6 +642,20 @@ export default function LaboratoryDashboard() {
                     Manage Doctors
                   </Link>
                 </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" asChild>
+                    <Link href="/laboratory/referrals">
+                      <Stethoscope className="h-4 w-4 mr-2" />
+                      Referrals
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="flex-1" asChild>
+                    <Link href="/laboratory/commissions">
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      Commissions
+                    </Link>
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -520,96 +681,184 @@ export default function LaboratoryDashboard() {
               <div className="grid grid-cols-2 gap-4">
                 <Button
                   variant="outline"
-                  className="h-20 flex-col gap-2 bg-white hover:bg-blue-50 border-blue-200"
+                  className="h-20 flex-col gap-2 bg-white hover:bg-blue-50 border-blue-200 transition-colors"
+                  asChild
                 >
-                  <FileText className="h-5 w-5 text-blue-600" />
-                  <span className="text-sm font-medium">New Test Order</span>
+                  <Link href="/laboratory/daily-record?action=new">
+                    <FileText className="h-5 w-5 text-blue-600" />
+                    <span className="text-sm font-medium">New Test Order</span>
+                  </Link>
                 </Button>
                 <Button
                   variant="outline"
-                  className="h-20 flex-col gap-2 bg-white hover:bg-green-50 border-green-200"
+                  className="h-20 flex-col gap-2 bg-white hover:bg-green-50 border-green-200 transition-colors"
+                  asChild
                 >
-                  <Search className="h-5 w-5 text-green-600" />
-                  <span className="text-sm font-medium">Search Results</span>
+                  <Link href="/laboratory/tests">
+                    <Search className="h-5 w-5 text-green-600" />
+                    <span className="text-sm font-medium">Search Results</span>
+                  </Link>
                 </Button>
                 <Button
                   variant="outline"
-                  className="h-20 flex-col gap-2 bg-white hover:bg-purple-50 border-purple-200"
+                  className="h-20 flex-col gap-2 bg-white hover:bg-purple-50 border-purple-200 transition-colors"
+                  asChild
                 >
-                  <DollarSign className="h-5 w-5 text-purple-600" />
-                  <span className="text-sm font-medium">Add Expense</span>
+                  <Link href="/laboratory/expenses?action=new">
+                    <DollarSign className="h-5 w-5 text-purple-600" />
+                    <span className="text-sm font-medium">Add Expense</span>
+                  </Link>
                 </Button>
                 <Button
                   variant="outline"
-                  className="h-20 flex-col gap-2 bg-white hover:bg-orange-50 border-orange-200"
+                  className="h-20 flex-col gap-2 bg-white hover:bg-orange-50 border-orange-200 transition-colors"
+                  asChild
                 >
-                  <Download className="h-5 w-5 text-orange-600" />
-                  <span className="text-sm font-medium">Export Reports</span>
+                  <Link href="/laboratory/reports">
+                    <Download className="h-5 w-5 text-orange-600" />
+                    <span className="text-sm font-medium">Export Reports</span>
+                  </Link>
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* User Information */}
+          {/* Recent Tests */}
           <Card className="shadow-lg border-0">
             <CardHeader className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-t-lg">
               <CardTitle className="flex items-center gap-2 text-xl">
-                <UserCog className="h-5 w-5" />
-                Staff Information
+                <Clock className="h-5 w-5" />
+                Recent Tests
               </CardTitle>
               <CardDescription className="text-purple-100">
-                Your account details and access information
+                Latest laboratory test activities
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6">
               <div className="space-y-4">
-                <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                  <div className="bg-blue-100 p-2 rounded-full">
-                    <UserCog className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {user?.firstName} {user?.lastName}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {user?.primaryEmailAddress?.emailAddress}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="space-y-1">
-                    <p className="font-medium text-gray-500">Role</p>
-                    <Badge
-                      variant={userRole === "admin" ? "destructive" : "default"}
-                      className="w-full justify-center"
+                {stats.recentTests.length > 0 ? (
+                  stats.recentTests.map((test) => (
+                    <div
+                      key={test.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
                     >
-                      {userRole === "admin"
-                        ? "Administrator"
-                        : "Laboratory Staff"}
-                    </Badge>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="font-medium text-gray-500">Access Level</p>
-                    <Badge
+                      <div className="flex items-center gap-3">
+                        {getTestTypeIcon(test.testType)}
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">
+                            {test.testName}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {test.patient
+                              ? `${test.patient.firstName} ${test.patient.lastName}`
+                              : "Unknown Patient"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Badge
+                          variant={getStatusVariant(test.status)}
+                          className="text-xs"
+                        >
+                          {test.status}
+                        </Badge>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(test.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <TestTube className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm">
+                      No recent tests found
+                    </p>
+                    <Button
                       variant="outline"
-                      className="w-full justify-center bg-green-50 text-green-700 border-green-200"
+                      size="sm"
+                      className="mt-3"
+                      asChild
                     >
-                      {userRole === "admin" ? "Full Access" : "Standard Access"}
-                    </Badge>
+                      <Link href="/laboratory/daily-record">
+                        Create First Test
+                      </Link>
+                    </Button>
                   </div>
-                </div>
+                )}
 
-                <div className="pt-4 border-t border-gray-200">
-                  <p className="text-xs text-gray-500 text-center">
-                    Last login: {new Date().toLocaleDateString()} • Session
-                    active
-                  </p>
-                </div>
+                {stats.recentTests.length > 0 && (
+                  <div className="pt-4 border-t border-gray-200">
+                    <Button variant="outline" className="w-full" asChild>
+                      <Link href="/laboratory/daily-record">
+                        View All Tests
+                      </Link>
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* User Information */}
+        <Card className="shadow-lg border-0 mb-8">
+          <CardHeader className="bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-t-lg">
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <UserCog className="h-5 w-5" />
+              Staff Information
+            </CardTitle>
+            <CardDescription className="text-gray-100">
+              Your account details and access information
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                <div className="bg-blue-100 p-2 rounded-full">
+                  <UserCog className="h-4 w-4 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">
+                    {user?.firstName} {user?.lastName}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {user?.primaryEmailAddress?.emailAddress}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="space-y-1">
+                  <p className="font-medium text-gray-500">Role</p>
+                  <Badge
+                    variant={userRole === "admin" ? "destructive" : "default"}
+                    className="w-full justify-center"
+                  >
+                    {userRole === "admin"
+                      ? "Administrator"
+                      : "Laboratory Staff"}
+                  </Badge>
+                </div>
+                <div className="space-y-1">
+                  <p className="font-medium text-gray-500">Access Level</p>
+                  <Badge
+                    variant="outline"
+                    className="w-full justify-center bg-green-50 text-green-700 border-green-200"
+                  >
+                    {userRole === "admin" ? "Full Access" : "Standard Access"}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-200">
+                <p className="text-xs text-gray-500 text-center">
+                  Last login: {new Date().toLocaleDateString()} • Session active
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Admin Only Section */}
         {userRole === "admin" && (
@@ -642,6 +891,16 @@ export default function LaboratoryDashboard() {
                   <Link href="/admin/set-user-roles">
                     <UserCog className="h-4 w-4 mr-2" />
                     Manage Users
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                  asChild
+                >
+                  <Link href="/laboratory/settings">
+                    <Settings className="h-4 w-4 mr-2" />
+                    System Settings
                   </Link>
                 </Button>
               </div>
