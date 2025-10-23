@@ -32,9 +32,7 @@ export async function GET(request: Request) {
       .from(laboratoryTests)
       .leftJoin(patients, eq(laboratoryTests.patientId, patients.id))
       .leftJoin(doctors, eq(laboratoryTests.doctorId, doctors.id))
-      .orderBy(desc(laboratoryTests.testDate))
-      .limit(limit)
-      .offset(offset);
+      .orderBy(desc(laboratoryTests.testDate));
 
     // Apply date filter if provided
     let tests = await testsQuery;
@@ -60,9 +58,7 @@ export async function GET(request: Request) {
         expenseType: laboratoryExpenses.expenseType,
       })
       .from(laboratoryExpenses)
-      .orderBy(desc(laboratoryExpenses.expenseDate))
-      .limit(limit)
-      .offset(offset);
+      .orderBy(desc(laboratoryExpenses.expenseDate));
 
     // Apply date filter if provided
     let expenses = await expensesQuery;

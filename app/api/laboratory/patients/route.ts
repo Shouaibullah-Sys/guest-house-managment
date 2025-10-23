@@ -34,8 +34,7 @@ export async function GET(req: NextRequest) {
         updatedAt: patients.updatedAt,
       })
       .from(patients)
-      .orderBy(desc(patients.createdAt))
-      .limit(100);
+      .orderBy(desc(patients.createdAt));
 
     return NextResponse.json({ patients: patientsData });
   } catch (error) {

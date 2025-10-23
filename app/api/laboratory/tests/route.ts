@@ -59,8 +59,7 @@ export async function GET(req: NextRequest) {
       .leftJoin(patients, eq(laboratoryTests.patientId, patients.id))
       .leftJoin(doctors, eq(laboratoryTests.doctorId, doctors.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(desc(laboratoryTests.createdAt))
-      .limit(100);
+      .orderBy(desc(laboratoryTests.createdAt));
 
     return NextResponse.json({ tests: testsData });
   } catch (error) {

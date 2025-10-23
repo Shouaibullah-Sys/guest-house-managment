@@ -47,6 +47,10 @@ import {
   ChevronDown,
   ChartBar,
   Calculator,
+  User,
+  Phone,
+  Mail,
+  Clock,
 } from "lucide-react";
 import {
   Table,
@@ -71,6 +75,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PatientList } from "@/components/patient-list";
 
 interface DashboardStats {
   totalRevenue: number;
@@ -132,9 +137,20 @@ interface Patient {
   id: number;
   firstName: string;
   lastName: string;
+  phoneNumber: string;
+  patientPin?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  address?: string;
+  emergencyContact?: string;
+  medicalHistory?: string;
+  createdAt: string;
+  updatedAt?: string;
+  lastVisit?: string;
+  totalTests?: number;
+  status?: "active" | "inactive";
   email?: string;
   phone?: string;
-  createdAt: string;
 }
 
 interface Doctor {
@@ -201,10 +217,24 @@ export default function AdminDashboard() {
   const [recentTransactions, setRecentTransactions] = useState<
     RecentTransaction[]
   >([]);
+  const [transactionsSummary, setTransactionsSummary] = useState<{
+    totalIncome: number;
+    totalExpenses: number;
+    netAmount: number;
+    transactionCount: number;
+  }>({
+    totalIncome: 0,
+    totalExpenses: 0,
+    netAmount: 0,
+    transactionCount: 0,
+  });
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string>("");
   const [dateRange, setDateRange] = useState<DateRange>(getThisMonthRange());
+  const [activeTab, setActiveTab] = useState("overview");
 
   // Date range functions
   function getTodayRange(): DateRange {
@@ -275,6 +305,7 @@ export default function AdminDashboard() {
         doctorsResponse,
         staffResponse,
         commissionsResponse,
+        transactionsResponse,
       ] = await Promise.all([
         fetch("/api/laboratory/tests"),
         fetch("/api/laboratory/patients"),
@@ -282,6 +313,9 @@ export default function AdminDashboard() {
         fetch("/api/laboratory/doctors"),
         fetch("/api/laboratory/staff"),
         fetch("/api/laboratory/doctor-commissions"),
+        fetch(
+          `/api/admin/dashboard/transactions?startDate=${dateRange.from}&endDate=${dateRange.to}`
+        ),
       ]);
 
       if (!testsResponse.ok || !patientsResponse.ok) {
@@ -294,6 +328,18 @@ export default function AdminDashboard() {
       const doctorsData = await doctorsResponse.json();
       const staffData = await staffResponse.json();
       const commissionsData = await commissionsResponse.json();
+      const transactionsData = await transactionsResponse.json();
+
+      // Set transactions data
+      setRecentTransactions(transactionsData.transactions || []);
+      setTransactionsSummary(
+        transactionsData.summary || {
+          totalIncome: 0,
+          totalExpenses: 0,
+          netAmount: 0,
+          transactionCount: 0,
+        }
+      );
 
       // Process the data with date range filtering
       await processDashboardData(
@@ -338,6 +384,15 @@ export default function AdminDashboard() {
       return expenseDate >= fromDate && expenseDate <= toDate;
     });
 
+    // Filter patients by date range
+    const filteredPatients = patients.filter((patient) => {
+      const patientDate = new Date(patient.createdAt);
+      const fromDate = new Date(dateRange.from);
+      const toDate = new Date(dateRange.to);
+      toDate.setHours(23, 59, 59, 999);
+      return patientDate >= fromDate && patientDate <= toDate;
+    });
+
     // Calculate basic stats
     const totalRevenue = filteredTests
       .filter((test) => test.status === "completed")
@@ -367,11 +422,42 @@ export default function AdminDashboard() {
       totalExpenses,
       netProfit,
       profitMargin,
-      totalPatients: patients.length, // Total patients (not filtered by date)
+      totalPatients: filteredPatients.length, // Use filtered patients count
       totalTests,
       pendingTests,
       completedTests,
     });
+
+    // Process patients data with additional info
+    const processedPatients: Patient[] = filteredPatients.map((patient) => {
+      const patientTests = filteredTests.filter(
+        (test) =>
+          test.patient?.firstName === patient.firstName &&
+          test.patient?.lastName === patient.lastName
+      );
+
+      const lastTest = patientTests
+        .filter((test) => test.testDate)
+        .sort(
+          (a, b) =>
+            new Date(b.testDate!).getTime() - new Date(a.testDate!).getTime()
+        )[0];
+
+      const status: "active" | "inactive" =
+        patientTests.length > 0 ? "active" : "inactive";
+
+      return {
+        ...patient,
+        phone: patient.phoneNumber,
+        email: undefined,
+        totalTests: patientTests.length,
+        lastVisit: lastTest?.testDate || patient.createdAt,
+        status: status,
+      };
+    });
+
+    setPatients(processedPatients);
+    setFilteredPatients(processedPatients);
 
     // Calculate department profits
     const departmentData = calculateDepartmentProfits(
@@ -379,14 +465,6 @@ export default function AdminDashboard() {
       filteredExpenses
     );
     setDepartmentProfits(departmentData);
-
-    // Prepare recent transactions
-    const transactions = prepareRecentTransactions(
-      filteredTests,
-      filteredExpenses,
-      doctors
-    );
-    setRecentTransactions(transactions);
 
     // Prepare revenue data for charts
     const revenueChartData = prepareRevenueData(
@@ -449,11 +527,11 @@ export default function AdminDashboard() {
   ): RecentTransaction[] => {
     const transactions: RecentTransaction[] = [];
 
-    // Add test transactions
-    tests.slice(0, 10).forEach((test, index) => {
+    // Add ALL test transactions (removed the slice limit)
+    tests.forEach((test, index) => {
       const doctor = doctors.find((d) => d.id === test.doctorId);
       transactions.push({
-        id: test.id || index, // Fallback to index if id is missing
+        id: test.id || index,
         type: "test",
         description: test.testName || "Unnamed Test",
         amount: test.amountPaid || 0,
@@ -466,14 +544,14 @@ export default function AdminDashboard() {
       });
     });
 
-    // Add expense transactions
-    expenses.slice(0, 10).forEach((expense, index) => {
+    // Add ALL expense transactions (removed the slice limit)
+    expenses.forEach((expense, index) => {
       const type =
         expense.expenseType === "doctor_percentage" ? "commission" : "expense";
       const doctor = doctors.find((d) => d.id === expense.relatedDoctorId);
 
       transactions.push({
-        id: expense.id || Date.now() + index, // Fallback to timestamp + index if id is missing
+        id: expense.id || Date.now() + index,
         type,
         description: expense.description || "Unnamed Expense",
         amount: -(expense.amount || 0),
@@ -484,10 +562,10 @@ export default function AdminDashboard() {
       });
     });
 
-    // Sort by date and take top 5
-    return transactions
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 5);
+    // Sort by date and return ALL transactions (removed the slice limit)
+    return transactions.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
   };
 
   const prepareRevenueData = (
@@ -663,51 +741,56 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50">
-      <div className="container mx-auto px-4 py-8 pt-24">
+      <div className="container mx-auto px-3 py-6 pt-20">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl md:text-4xl font-bold text-gray-900 mb-2">
               Admin Dashboard
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-600 text-sm md:text-base">
               Welcome back, {user?.firstName}! Here's your laboratory overview.
               {lastUpdated && (
-                <span className="text-sm text-gray-500 ml-2">
+                <span className="text-xs md:text-sm text-gray-500 ml-2">
                   Last updated: {lastUpdated}
                 </span>
               )}
             </p>
           </div>
-          <div className="flex flex-wrap gap-3 mt-4 md:mt-0">
-            <Button variant="outline" asChild>
+          <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
+            <Button variant="outline" size="sm" asChild>
               <a href="/admin/users">
-                <UserCog className="h-4 w-4 mr-2" />
-                User Management
+                <UserCog className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                <span className="text-xs md:text-sm">Users</span>
               </a>
             </Button>
-            <Button variant="outline" asChild>
+            <Button variant="outline" size="sm" asChild>
               <a href="/admin/conversation">
-                <ChartBar className="h-4 w-4 mr-2" />
-                Chat wit Patient
+                <ChartBar className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                <span className="text-xs md:text-sm">Chat</span>
               </a>
             </Button>
             <Button
               variant="outline"
-              className="flex items-center gap-2"
+              size="sm"
+              className="flex items-center gap-1 md:gap-2"
               onClick={fetchDashboardData}
             >
-              <RefreshCw className="h-4 w-4" />
-              Refresh
+              <RefreshCw className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="text-xs md:text-sm">Refresh</span>
             </Button>
-            <Button variant="outline" className="flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              Export Report
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1 md:gap-2"
+            >
+              <Download className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="text-xs md:text-sm">Export</span>
             </Button>
-            <Button variant="outline" asChild>
+            <Button variant="outline" size="sm" asChild>
               <a href="/admin/commissions">
-                <Calculator className="h-4 w-4 mr-2" />
-                Commissions
+                <Calculator className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                <span className="text-xs md:text-sm">Commissions</span>
               </a>
             </Button>
           </div>
@@ -715,7 +798,7 @@ export default function AdminDashboard() {
 
         {/* Date Range Picker */}
         <Card className="mb-6 shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
                 <div className="space-y-2">
@@ -751,7 +834,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 w-full lg:w-auto">
                 <Button
                   variant={
                     dateRange.from === getTodayRange().from
@@ -760,6 +843,7 @@ export default function AdminDashboard() {
                   }
                   size="sm"
                   onClick={() => handleDateRangeChange("today")}
+                  className="flex-1 lg:flex-none"
                 >
                   Today
                 </Button>
@@ -771,8 +855,9 @@ export default function AdminDashboard() {
                   }
                   size="sm"
                   onClick={() => handleDateRangeChange("week")}
+                  className="flex-1 lg:flex-none"
                 >
-                  This Week
+                  Week
                 </Button>
                 <Button
                   variant={
@@ -782,8 +867,9 @@ export default function AdminDashboard() {
                   }
                   size="sm"
                   onClick={() => handleDateRangeChange("month")}
+                  className="flex-1 lg:flex-none"
                 >
-                  This Month
+                  Month
                 </Button>
                 <Button
                   variant={
@@ -793,8 +879,9 @@ export default function AdminDashboard() {
                   }
                   size="sm"
                   onClick={() => handleDateRangeChange("lifetime")}
+                  className="flex-1 lg:flex-none"
                 >
-                  Life Time
+                  Lifetime
                 </Button>
               </div>
             </div>
@@ -806,12 +893,12 @@ export default function AdminDashboard() {
         </Card>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
           <StatCard
             title="Total Revenue"
             value={stats.totalRevenue}
             change={12.5}
-            icon={<DollarSign className="h-6 w-6" />}
+            icon={<DollarSign className="h-4 w-4 md:h-6 md:w-6" />}
             color="text-green-600"
             bgColor="bg-green-500"
           />
@@ -819,7 +906,7 @@ export default function AdminDashboard() {
             title="Net Profit"
             value={stats.netProfit}
             change={8.3}
-            icon={<TrendingUp className="h-6 w-6" />}
+            icon={<TrendingUp className="h-4 w-4 md:h-6 md:w-6" />}
             color="text-blue-600"
             bgColor="bg-blue-500"
           />
@@ -827,7 +914,7 @@ export default function AdminDashboard() {
             title="Total Patients"
             value={stats.totalPatients}
             change={5.2}
-            icon={<Users className="h-6 w-6" />}
+            icon={<Users className="h-4 w-4 md:h-6 md:w-6" />}
             color="text-purple-600"
             bgColor="bg-purple-500"
           />
@@ -835,60 +922,78 @@ export default function AdminDashboard() {
             title="Tests Completed"
             value={stats.completedTests}
             change={15.7}
-            icon={<TestTube className="h-6 w-6" />}
+            icon={<TestTube className="h-4 w-4 md:h-6 md:w-6" />}
             color="text-orange-600"
             bgColor="bg-orange-500"
           />
         </div>
 
         {/* Main Content */}
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 bg-white/90 backdrop-blur-sm border">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <Activity className="h-4 w-4" />
-              <span className="hidden sm:inline">Overview</span>
+        <Tabs
+          defaultValue="overview"
+          className="space-y-4 md:space-y-6"
+          onValueChange={setActiveTab}
+        >
+          {/* Mobile-optimized Tabs */}
+          <TabsList className="flex w-full overflow-x-auto bg-white/90 backdrop-blur-sm border p-1">
+            <TabsTrigger
+              value="overview"
+              className="flex items-center gap-1 md:gap-2 flex-1 min-w-0 px-2 md:px-4"
+            >
+              <Activity className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
+              <span className="truncate text-xs md:text-sm">Overview</span>
             </TabsTrigger>
-            <TabsTrigger value="revenue" className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              <span className="hidden sm:inline">Revenue</span>
+            <TabsTrigger
+              value="revenue"
+              className="flex items-center gap-1 md:gap-2 flex-1 min-w-0 px-2 md:px-4"
+            >
+              <DollarSign className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
+              <span className="truncate text-xs md:text-sm">Revenue</span>
             </TabsTrigger>
             <TabsTrigger
               value="departments"
-              className="flex items-center gap-2"
+              className="flex items-center gap-1 md:gap-2 flex-1 min-w-0 px-2 md:px-4"
             >
-              <Stethoscope className="h-4 w-4" />
-              <span className="hidden sm:inline">Departments</span>
+              <Stethoscope className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
+              <span className="truncate text-xs md:text-sm">Departments</span>
             </TabsTrigger>
             <TabsTrigger
               value="transactions"
-              className="flex items-center gap-2"
+              className="flex items-center gap-1 md:gap-2 flex-1 min-w-0 px-2 md:px-4"
             >
-              <Calendar className="h-4 w-4" />
-              <span className="hidden sm:inline">Transactions</span>
+              <Calendar className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
+              <span className="truncate text-xs md:text-sm">Transactions</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="patients"
+              className="flex items-center gap-1 md:gap-2 flex-1 min-w-0 px-2 md:px-4"
+            >
+              <User className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
+              <span className="truncate text-xs md:text-sm">Patients</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <TabsContent value="overview" className="space-y-4 md:space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
               {/* Revenue vs Expenses Chart */}
               <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
+                <CardHeader className="p-4 md:p-6">
+                  <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                    <TrendingUp className="h-4 w-4 md:h-5 md:w-5" />
                     Revenue vs Expenses
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-sm md:text-base">
                     Monthly revenue and expenses comparison
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
+                <CardContent className="p-4 md:p-6 pt-0">
+                  <div className="h-[250px] md:h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={revenueData}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
+                        <XAxis dataKey="month" fontSize={12} />
+                        <YAxis fontSize={12} />
                         <Tooltip />
                         <Legend />
                         <Line
@@ -911,17 +1016,17 @@ export default function AdminDashboard() {
 
               {/* Department Profit Distribution */}
               <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5" />
+                <CardHeader className="p-4 md:p-6">
+                  <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                    <DollarSign className="h-4 w-4 md:h-5 md:w-5" />
                     Profit by Department
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-sm md:text-base">
                     Net profit distribution across departments
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
+                <CardContent className="p-4 md:p-6 pt-0">
+                  <div className="h-[250px] md:h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -953,17 +1058,17 @@ export default function AdminDashboard() {
 
             {/* Department Performance */}
             <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Stethoscope className="h-5 w-5" />
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                  <Stethoscope className="h-4 w-4 md:h-5 md:w-5" />
                   Department Performance
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm md:text-base">
                   Detailed profit margin analysis by department
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <CardContent className="p-4 md:p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {departmentProfits.map((dept, index) => (
                     <div
                       key={dept.department}
@@ -978,25 +1083,25 @@ export default function AdminDashboard() {
                           style={{ backgroundColor: COLORS[index] + "20" }}
                         >
                           <DollarSign
-                            className="h-4 w-4"
+                            className="h-3 w-3 md:h-4 md:w-4"
                             style={{ color: COLORS[index] }}
                           />
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-xs md:text-sm">
                           <span className="text-gray-600">Revenue:</span>
                           <span className="font-semibold">
                             AFN {dept.revenue.toLocaleString()}
                           </span>
                         </div>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-xs md:text-sm">
                           <span className="text-gray-600">Expenses:</span>
                           <span className="font-semibold">
                             AFN {dept.expenses.toLocaleString()}
                           </span>
                         </div>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-xs md:text-sm">
                           <span className="text-gray-600">Net Profit:</span>
                           <span
                             className={`font-semibold ${
@@ -1008,7 +1113,7 @@ export default function AdminDashboard() {
                             AFN {dept.netProfit.toLocaleString()}
                           </span>
                         </div>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-xs md:text-sm">
                           <span className="text-gray-600">Margin:</span>
                           <Badge
                             variant={
@@ -1018,6 +1123,7 @@ export default function AdminDashboard() {
                                 ? "secondary"
                                 : "outline"
                             }
+                            className="text-xs"
                           >
                             {dept.margin}%
                           </Badge>
@@ -1033,22 +1139,22 @@ export default function AdminDashboard() {
           {/* Revenue Tab */}
           <TabsContent value="revenue">
             <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                  <DollarSign className="h-4 w-4 md:h-5 md:w-5" />
                   Revenue Analytics
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm md:text-base">
                   Detailed revenue breakdown and trends
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="h-[400px]">
+              <CardContent className="p-4 md:p-6 pt-0">
+                <div className="h-[300px] md:h-[400px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={revenueData}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
+                      <XAxis dataKey="month" fontSize={12} />
+                      <YAxis fontSize={12} />
                       <Tooltip />
                       <Legend />
                       <Bar dataKey="revenue" fill="#0088FE" name="Revenue" />
@@ -1063,22 +1169,22 @@ export default function AdminDashboard() {
           {/* Departments Tab */}
           <TabsContent value="departments">
             <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Stethoscope className="h-5 w-5" />
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                  <Stethoscope className="h-4 w-4 md:h-5 md:w-5" />
                   Department Profit Margins
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm md:text-base">
                   Comprehensive department-wise profit analysis
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="h-[400px]">
+              <CardContent className="p-4 md:p-6 pt-0">
+                <div className="h-[300px] md:h-[400px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={departmentProfits}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="department" />
-                      <YAxis />
+                      <XAxis dataKey="department" fontSize={12} />
+                      <YAxis fontSize={12} />
                       <Tooltip />
                       <Legend />
                       <Bar dataKey="revenue" fill="#0088FE" name="Revenue" />
@@ -1095,19 +1201,22 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Transactions Tab */}
+          {/* Transactions Tab - FIXED: Now shows ALL transactions */}
           <TabsContent value="transactions">
             <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                  <Calendar className="h-4 w-4 md:h-5 md:w-5" />
                   Recent Transactions
                 </CardTitle>
-                <CardDescription>
-                  Latest financial transactions and activities
+                <CardDescription className="text-sm md:text-base">
+                  {transactionsSummary.transactionCount} transactions found for
+                  the selected date range (Income: AFN{" "}
+                  {transactionsSummary.totalIncome.toLocaleString()}, Expenses:
+                  AFN {transactionsSummary.totalExpenses.toLocaleString()})
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 md:p-6">
                 {/* Desktop Table */}
                 <div className="hidden md:block rounded-md border">
                   <Table>
@@ -1221,6 +1330,24 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Patients Tab */}
+          <TabsContent value="patients">
+            <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                  <Users className="h-4 w-4 md:h-5 md:w-5" />
+                  Patient List
+                </CardTitle>
+                <CardDescription className="text-sm md:text-base">
+                  Patients registered within the selected date range
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 md:p-6">
+                <PatientList patients={filteredPatients} />
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
     </div>
@@ -1240,15 +1367,20 @@ function StatCard({
 
   return (
     <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
-      <CardContent className="p-6">
+      <CardContent className="p-4 md:p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-600">{title}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">
-              AFN {value.toLocaleString()}
+            <p className="text-xs md:text-sm font-medium text-gray-600">
+              {title}
+            </p>
+            <p className="text-lg md:text-2xl font-bold text-gray-900 mt-1">
+              {title.includes("Revenue") || title.includes("Profit")
+                ? "AFN "
+                : ""}
+              {value.toLocaleString()}
             </p>
             <div
-              className={`flex items-center mt-2 text-sm ${
+              className={`flex items-center mt-1 md:mt-2 text-xs md:text-sm ${
                 isPositive ? "text-green-600" : "text-red-600"
               }`}
             >
@@ -1260,7 +1392,7 @@ function StatCard({
               {Math.abs(change)}% from last month
             </div>
           </div>
-          <div className={`p-3 rounded-xl ${bgColor} bg-opacity-10`}>
+          <div className={`p-2 md:p-3 rounded-xl ${bgColor} bg-opacity-10`}>
             <div className={color}>{icon}</div>
           </div>
         </div>
