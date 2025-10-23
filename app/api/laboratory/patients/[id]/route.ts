@@ -6,10 +6,11 @@ import { eq, desc } from "drizzle-orm";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const patientId = parseInt(params.id);
+    const { id } = await params;
+    const patientId = parseInt(id);
 
     if (isNaN(patientId)) {
       return NextResponse.json(
