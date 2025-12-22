@@ -18,6 +18,18 @@ const searchQuerySchema = z.object({
   limit: z.string().optional(),
 });
 
+// Helper function to safely convert Decimal128 to number
+function convertToNumber(value: any): number {
+  if (typeof value === "number") return value;
+  if (value && typeof value === "object" && "$numberDecimal" in value) {
+    return parseFloat(value.$numberDecimal);
+  }
+  if (value && typeof value === "object" && "toString" in value) {
+    return parseFloat(value.toString());
+  }
+  return 0;
+}
+
 // Transform Room document to frontend format
 function transformRoomToResponse(room: any) {
   return {
@@ -31,6 +43,37 @@ function transformRoomToResponse(room: any) {
     notes: room.notes || "",
     createdAt: room.createdAt.toISOString(),
     updatedAt: room.updatedAt.toISOString(),
+  };
+}
+
+// Transform RoomType data to frontend format (for nested room types)
+function transformRoomTypeToResponse(roomType: any) {
+  return {
+    id: roomType._id.toString(),
+    name: roomType.name,
+    code: roomType.code,
+    category: roomType.category,
+    description: roomType.description || null,
+    maxOccupancy: roomType.maxOccupancy,
+    basePrice: convertToNumber(roomType.basePrice),
+    extraPersonPrice: roomType.extraPersonPrice
+      ? convertToNumber(roomType.extraPersonPrice)
+      : null,
+    amenities: roomType.amenities || [],
+    premiumAmenities: roomType.premiumAmenities || [],
+    images: roomType.images || [],
+    size: roomType.size || null,
+    bedType: roomType.bedType || null,
+    viewType: roomType.viewType || "city",
+    smokingAllowed: roomType.smokingAllowed,
+    isActive: roomType.isActive,
+    rating: roomType.rating || 0,
+    createdAt: roomType.createdAt
+      ? roomType.createdAt.toISOString()
+      : new Date().toISOString(),
+    updatedAt: roomType.updatedAt
+      ? roomType.updatedAt.toISOString()
+      : new Date().toISOString(),
   };
 }
 
@@ -109,13 +152,15 @@ export async function GET(request: NextRequest) {
     // Transform rooms and handle category filter if needed
     let transformedRooms = rooms.map((room: any) => ({
       ...transformRoomToResponse(room),
-      roomType: room.roomType,
+      roomType: room.roomType
+        ? transformRoomTypeToResponse(room.roomType)
+        : null,
     }));
 
     // Apply category filter if specified
     if (query.category && query.category !== "all") {
       transformedRooms = transformedRooms.filter(
-        (room) => room.roomType?.category === query.category
+        (room: any) => room.roomType?.category === query.category
       );
     }
 
@@ -197,7 +242,6 @@ export async function POST(request: NextRequest) {
       floor: roomData.floor,
       status: roomData.status,
       notes: roomData.notes,
-      createdBy: userId,
     });
 
     await newRoom.save();
@@ -212,7 +256,20 @@ export async function POST(request: NextRequest) {
       })
       .lean();
 
+    if (!populatedRoom) {
+      return NextResponse.json(
+        { error: "Failed to retrieve created room" },
+        { status: 500 }
+      );
+    }
+
     const transformedRoom = transformRoomToResponse(populatedRoom);
+    const populatedRoomData = populatedRoom as any;
+    if (populatedRoomData.roomType) {
+      (transformedRoom as any).roomType = transformRoomTypeToResponse(
+        populatedRoomData.roomType
+      );
+    }
 
     return NextResponse.json(
       {
@@ -313,7 +370,17 @@ export async function PUT(request: NextRequest) {
       })
       .lean();
 
+    if (!updatedRoom) {
+      return NextResponse.json({ error: "اتاق یافت نشد" }, { status: 404 });
+    }
+
     const transformedRoom = transformRoomToResponse(updatedRoom);
+    const updatedRoomData = updatedRoom as any;
+    if (updatedRoomData.roomType) {
+      (transformedRoom as any).roomType = transformRoomTypeToResponse(
+        updatedRoomData.roomType
+      );
+    }
 
     return NextResponse.json({
       success: true,

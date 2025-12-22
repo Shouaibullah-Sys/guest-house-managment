@@ -5,6 +5,18 @@ import { RoomType } from "@/models/RoomType";
 import dbConnect from "@/lib/db";
 import { z } from "zod";
 
+// Helper function to safely convert Decimal128 to number
+function convertToNumber(value: any): number {
+  if (typeof value === "number") return value;
+  if (value && typeof value === "object" && "$numberDecimal" in value) {
+    return parseFloat(value.$numberDecimal);
+  }
+  if (value && typeof value === "object" && "toString" in value) {
+    return parseFloat(value.toString());
+  }
+  return 0;
+}
+
 // Transform RoomType document to frontend format
 function transformRoomTypeToResponse(roomType: any) {
   return {
@@ -14,9 +26,9 @@ function transformRoomTypeToResponse(roomType: any) {
     category: roomType.category,
     description: roomType.description || null,
     maxOccupancy: roomType.maxOccupancy,
-    basePrice: Number(roomType.basePrice),
+    basePrice: convertToNumber(roomType.basePrice),
     extraPersonPrice: roomType.extraPersonPrice
-      ? Number(roomType.extraPersonPrice)
+      ? convertToNumber(roomType.extraPersonPrice)
       : null,
     amenities: roomType.amenities || [],
     premiumAmenities: roomType.premiumAmenities || [],

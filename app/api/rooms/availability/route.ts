@@ -20,6 +20,9 @@ function convertToNumber(value: any): number {
   if (value && typeof value === "object" && "$numberDecimal" in value) {
     return parseFloat(value.$numberDecimal);
   }
+  if (value && typeof value === "object" && "toString" in value) {
+    return parseFloat(value.toString());
+  }
   return 0;
 }
 

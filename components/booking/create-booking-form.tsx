@@ -67,7 +67,7 @@ interface Room {
     id: string;
     name: string;
     code: string;
-    basePrice: string;
+    basePrice: number;
     maxOccupancy: number;
     amenities?: string[];
   };
@@ -111,7 +111,7 @@ export function CreateBookingForm({
     setSelectedRoom(room);
     if (room) {
       form.setValue("roomId", room.id);
-      form.setValue("roomRate", parseFloat(room.roomType.basePrice));
+      form.setValue("roomRate", room.roomType.basePrice);
     } else {
       form.setValue("roomId", "");
       form.setValue("roomRate", 0);

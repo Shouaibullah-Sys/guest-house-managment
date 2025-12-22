@@ -761,7 +761,8 @@ export default function QuickBookingWidget() {
                           </div>
                           <div className="text-right">
                             <div className="text-xl font-bold text-amber-600">
-                              ${room.roomType.basePrice}
+                              {room.roomType.basePrice.toLocaleString("fa-IR")}{" "}
+                              افغانی
                             </div>
                             <div className="text-xs text-gray-500 dark:text-gray-400">
                               per night

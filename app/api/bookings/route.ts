@@ -20,6 +20,18 @@ const searchQuerySchema = z.object({
 
 // Transform Booking document to frontend format
 function transformBookingToResponse(booking: any) {
+  // Helper function to convert Decimal128 to number
+  const convertToNumber = (value: any): number => {
+    if (typeof value === "number") return value;
+    if (value && typeof value === "object" && "$numberDecimal" in value) {
+      return parseFloat(value.$numberDecimal);
+    }
+    if (value && typeof value === "object" && "toString" in value) {
+      return parseFloat(value.toString());
+    }
+    return 0;
+  };
+
   return {
     id: booking._id.toString(),
     bookingNumber: booking.bookingNumber,
@@ -38,9 +50,9 @@ function transformBookingToResponse(booking: any) {
     adults: booking.adults,
     children: booking.children,
     infants: booking.infants,
-    totalAmount: Number(booking.totalAmount),
-    paidAmount: Number(booking.paidAmount),
-    outstandingAmount: Number(booking.outstandingAmount),
+    totalAmount: convertToNumber(booking.totalAmount),
+    paidAmount: convertToNumber(booking.paidAmount),
+    outstandingAmount: convertToNumber(booking.outstandingAmount),
     status: booking.status,
     paymentStatus: booking.paymentStatus,
     specialRequests: booking.specialRequests || "",

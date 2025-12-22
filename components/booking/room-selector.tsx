@@ -26,7 +26,7 @@ interface Room {
     id: string;
     name: string;
     code: string;
-    basePrice: string;
+    basePrice: number;
     maxOccupancy: number;
     amenities?: string[];
   };
@@ -183,10 +183,7 @@ export function RoomSelector({
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">
-                        {parseFloat(room.roomType.basePrice).toLocaleString(
-                          "fa-IR"
-                        )}{" "}
-                        افغانی
+                        {room.roomType.basePrice.toLocaleString("fa-IR")} افغانی
                       </span>
                       {getStatusBadge(room.status)}
                     </div>
@@ -229,9 +226,7 @@ export function RoomSelector({
 
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-primary">
-                    {parseFloat(selectedRoom.roomType.basePrice).toLocaleString(
-                      "fa-IR"
-                    )}{" "}
+                    {selectedRoom.roomType.basePrice.toLocaleString("fa-IR")}{" "}
                     افغانی
                   </span>
                   <span className="text-sm text-muted-foreground">/شب</span>
