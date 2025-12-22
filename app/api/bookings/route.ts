@@ -7,6 +7,7 @@ import { Room } from "@/models/Room";
 import { RoomType } from "@/models/RoomType";
 import dbConnect from "@/lib/db";
 import { z } from "zod";
+import mongoose from "mongoose";
 
 // Search query validation
 const searchQuerySchema = z.object({
@@ -32,18 +33,32 @@ function transformBookingToResponse(booking: any) {
     return 0;
   };
 
+  // Log the booking data structure for debugging
+  console.log(
+    "Booking data structure:",
+    JSON.stringify(
+      {
+        id: booking._id,
+        hasGuest: !!booking.guest,
+        hasRoom: !!booking.room,
+        guestName: booking.guest?.name,
+        roomNumber: booking.room?.roomNumber,
+        roomType: booking.room?.roomType?.name,
+      },
+      null,
+      2
+    )
+  );
+
   return {
     id: booking._id.toString(),
     bookingNumber: booking.bookingNumber,
     guestId: booking.guest,
-    guestName: booking.guestData?.name || "Unknown Guest",
-    guestEmail: booking.guestData?.email || "",
-    guestPhone: booking.guestData?.phone || "",
-    roomNumber: booking.roomData?.roomNumber || "Unknown",
-    roomType:
-      booking.roomData?.roomType?.name ||
-      booking.roomData?.roomType ||
-      "Unknown",
+    guestName: booking.guest?.name || "Unknown Guest",
+    guestEmail: booking.guest?.email || "",
+    guestPhone: booking.guest?.phone || "",
+    roomNumber: booking.room?.roomNumber || "Unknown",
+    roomType: booking.room?.roomType?.name || "Unknown",
     checkInDate: booking.checkInDate.toISOString().split("T")[0],
     checkOutDate: booking.checkOutDate.toISOString().split("T")[0],
     totalNights: booking.totalNights,
@@ -72,6 +87,21 @@ export async function GET(request: NextRequest) {
     }
 
     await dbConnect();
+
+    // Ensure User model is registered with Mongoose
+    if (!mongoose.models.User) {
+      await import("@/models/User");
+    }
+
+    // Ensure Room model is registered with Mongoose
+    if (!mongoose.models.Room) {
+      await import("@/models/Room");
+    }
+
+    // Ensure RoomType model is registered with Mongoose
+    if (!mongoose.models.RoomType) {
+      await import("@/models/RoomType");
+    }
 
     const searchParams = request.nextUrl.searchParams;
     const query = searchQuerySchema.parse({
@@ -165,16 +195,19 @@ export async function GET(request: NextRequest) {
         path: "guest",
         model: "User",
         select: "name email phone",
+        options: { lean: true },
       })
       .populate({
         path: "room",
         model: "Room",
-        select: "roomNumber floor",
+        select: "roomNumber floor roomType",
+        options: { lean: true },
       })
       .populate({
         path: "room.roomType",
         model: "RoomType",
         select: "name",
+        options: { lean: true },
       })
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -182,14 +215,18 @@ export async function GET(request: NextRequest) {
       .lean();
 
     // Transform to frontend format
-    const transformedBookings = bookings.map((booking: any) => ({
-      ...transformBookingToResponse(booking),
-      guestData: booking.guest,
-      roomData: {
-        ...booking.room,
-        roomType: booking.room?.roomType?.name || "Unknown",
-      },
-    }));
+    console.log(`Found ${bookings.length} bookings to transform`);
+    const transformedBookings = bookings.map((booking: any) => {
+      const transformed = transformBookingToResponse(booking);
+      return {
+        ...transformed,
+        guestData: booking.guest,
+        roomData: {
+          ...booking.room,
+          roomType: booking.room?.roomType?.name || "Unknown",
+        },
+      };
+    });
 
     // Calculate statistics
     const stats = await Booking.aggregate([
@@ -252,6 +289,21 @@ export async function POST(request: NextRequest) {
     }
 
     await dbConnect();
+
+    // Ensure User model is registered with Mongoose
+    if (!mongoose.models.User) {
+      await import("@/models/User");
+    }
+
+    // Ensure Room model is registered with Mongoose
+    if (!mongoose.models.Room) {
+      await import("@/models/Room");
+    }
+
+    // Ensure RoomType model is registered with Mongoose
+    if (!mongoose.models.RoomType) {
+      await import("@/models/RoomType");
+    }
 
     const body = await request.json();
 
@@ -353,16 +405,19 @@ export async function POST(request: NextRequest) {
         path: "guest",
         model: "User",
         select: "name email phone",
+        options: { lean: true },
       })
       .populate({
         path: "room",
         model: "Room",
-        select: "roomNumber floor",
+        select: "roomNumber floor roomType",
+        options: { lean: true },
       })
       .populate({
         path: "room.roomType",
         model: "RoomType",
         select: "name",
+        options: { lean: true },
       })
       .lean();
 
