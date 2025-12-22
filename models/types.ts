@@ -29,14 +29,14 @@ export type VendorType =
   | "contractor"
   | "other";
 export type ExpenseCategory =
-  | "لوازم اداری"
-  | "خدمات عمومی"
+  | "وسایل اداری"
+  | "معاش کارمندان"
   | "حمل و نقل"
   | "بازاریابی"
   | "نگهداری"
   | "سفر"
   | "غذا و سرگرمی"
-  | "بیمه"
+  | "کرایه موتر"
   | "کرایه"
   | "تجهیزات"
   | "نرم افزار"
@@ -107,7 +107,7 @@ export interface IStaff extends Document {
 export interface IRoomType extends Document {
   name: string;
   code: string;
-  category: "luxury" | "executive" | "standard" | "family";
+  category: "luxury" | "VIP" | "standard" | "family";
   description?: string;
   maxOccupancy: number;
   basePrice: Types.Decimal128;
@@ -117,7 +117,7 @@ export interface IRoomType extends Document {
   images: string[];
   size?: string;
   bedType?: string;
-  viewType?: "mountain" | "city" | "garden" | "pool";
+  viewType?: "Market" | "city" | "garden" | "pool";
   smokingAllowed: boolean;
   isActive: boolean;
   rating?: number;
@@ -453,6 +453,20 @@ export interface IAuditLog extends Document {
   newValues?: Record<string, any>;
   ipAddress?: string;
   userAgent?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IHeroSection extends Document {
+  title: string;
+  description: string;
+  location: string;
+  imageUrl: string;
+  imagePath?: string; // Firebase storage path
+  isActive: boolean;
+  displayOrder: number;
+  createdBy?: string;
+  updatedBy?: string;
   createdAt: Date;
   updatedAt: Date;
 }

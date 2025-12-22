@@ -22,3 +22,4 @@ export { Notification } from "./Notification";
 export { AuditLog } from "./AuditLog";
 export { Sale } from "./Sale";
 export { Payment } from "./Payment";
+export { HeroSection } from "./HeroSection";
