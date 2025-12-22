@@ -4,8 +4,6 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { QueryProvider } from "@/components/QueryProvider";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer"; // Import the new Footer component
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -25,10 +23,8 @@ export default function RootLayout({
       <QueryProvider>
         <html lang="en">
           <body className={inter.className}>
-            <div className="min-h-screen flex flex-col">
-              <Header />
+            <div className="min-h-screen flex flex-col mb-48">
               <main className="flex-grow">{children}</main>
-              <Footer /> {/* Add Footer here */}
             </div>
           </body>
         </html>

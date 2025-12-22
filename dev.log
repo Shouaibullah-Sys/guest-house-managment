@@ -1,0 +1,16 @@
+
+> dr-sebghat-clinic@0.1.0 dev
+> next dev --turbopack
+
+   ▲ Next.js 15.5.4 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.109:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ○ Compiling middleware ...
+ ✓ Compiled middleware in 10.6s
+ ✓ Ready in 15.3s
+🔍 Middleware - Path: /api/refunds, UserId: null, Role: undefined, Approved: undefined
+🔍 Middleware - Path: /api/refunds, UserId: null, Role: undefined, Approved: undefined
+[?25h

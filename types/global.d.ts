@@ -3,7 +3,8 @@ export {};
 declare global {
   interface CustomJwtSessionClaims {
     metadata: {
-      role?: Roles;
+      role?: "admin" | "staff" | "guest";
+      approved?: boolean;
     };
   }
 }

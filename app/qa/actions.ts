@@ -1,40 +1,31 @@
 "use server";
 
-import { db } from "@/db";
-import { questions, answers } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import dbConnect from "@/lib/db";
+import { Question } from "@/models/Question";
 import { currentUser } from "@clerk/nextjs/server";
 
 // Get approved questions with approved answers for patients
 export async function getApprovedQuestionsWithAnswers() {
   try {
-    // Only get approved questions
-    const approvedQuestions = await db
-      .select()
-      .from(questions)
-      .where(eq(questions.approved, true))
-      .orderBy(questions.timestamp);
+    // Connect to database
+    await dbConnect();
 
-    const questionsWithAnswers = await Promise.all(
-      approvedQuestions.map(async (question) => {
-        // Only get approved answers
-        const questionAnswers = await db
-          .select()
-          .from(answers)
-          .where(
-            and(
-              eq(answers.questionId, question.id!),
-              eq(answers.approved, true)
-            )
-          )
-          .orderBy(answers.timestamp);
+    // Only get approved questions with approved answers
+    const approvedQuestions = await Question.find({ approved: true })
+      .sort({ createdAt: -1 })
+      .lean();
 
-        return {
-          ...question,
-          answers: questionAnswers,
-        };
-      })
-    );
+    const questionsWithAnswers = approvedQuestions.map((question: any) => ({
+      ...question,
+      id: question._id,
+      answers:
+        question.answers
+          ?.filter((answer: any) => answer.approved)
+          ?.map((answer: any) => ({
+            ...answer,
+            id: answer._id,
+          })) || [],
+    }));
 
     return questionsWithAnswers;
   } catch (error) {
@@ -55,10 +46,19 @@ export async function submitQuestion(questionData: {
       throw new Error("Unauthorized");
     }
 
-    await db.insert(questions).values({
-      ...questionData,
+    // Connect to database
+    await dbConnect();
+
+    const newQuestion = new Question({
+      quiz: questionData.quiz,
       approved: false, // Patient questions need admin approval
+      contributor: questionData.contributor,
+      contributorId: questionData.contributorId,
+      answers: [],
+      createdAt: new Date(),
     });
+
+    await newQuestion.save();
 
     return { success: true };
   } catch (error) {
