@@ -2,35 +2,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { Booking } from "@/models/Booking";
-import { User } from "@/models/User";
-import { Room } from "@/models/Room";
-import { RoomType } from "@/models/RoomType";
 import dbConnect from "@/lib/db";
 import { z } from "zod";
 
 // Transform Booking document to frontend format
 function transformBookingToResponse(booking: any) {
+  // Helper function to convert Decimal128 to number
+  const convertToNumber = (value: any): number => {
+    if (typeof value === "number") return value;
+    if (value && typeof value === "object" && "$numberDecimal" in value) {
+      return parseFloat(value.$numberDecimal);
+    }
+    if (value && typeof value === "object" && "toString" in value) {
+      return parseFloat(value.toString());
+    }
+    return 0;
+  };
+
   return {
     id: booking._id.toString(),
     bookingNumber: booking.bookingNumber,
     guestId: booking.guest,
-    guestName: booking.guestData?.name || "Unknown Guest",
-    guestEmail: booking.guestData?.email || "",
-    guestPhone: booking.guestData?.phone || "",
-    roomNumber: booking.roomData?.roomNumber || "Unknown",
-    roomType:
-      booking.roomData?.roomType?.name ||
-      booking.roomData?.roomType ||
-      "Unknown",
+    guestName: booking.guest?.name || "Unknown Guest",
+    guestEmail: booking.guest?.email || "",
+    guestPhone: booking.guest?.phone || "",
+    roomNumber: booking.room?.roomNumber || "Unknown",
+    roomType: booking.room?.roomType?.name || "Unknown",
     checkInDate: booking.checkInDate.toISOString().split("T")[0],
     checkOutDate: booking.checkOutDate.toISOString().split("T")[0],
     totalNights: booking.totalNights,
     adults: booking.adults,
     children: booking.children,
     infants: booking.infants,
-    totalAmount: Number(booking.totalAmount),
-    paidAmount: Number(booking.paidAmount),
-    outstandingAmount: Number(booking.outstandingAmount),
+    totalAmount: convertToNumber(booking.totalAmount),
+    paidAmount: convertToNumber(booking.paidAmount),
+    outstandingAmount: convertToNumber(booking.outstandingAmount),
     status: booking.status,
     paymentStatus: booking.paymentStatus,
     specialRequests: booking.specialRequests || "",
@@ -44,7 +50,7 @@ function transformBookingToResponse(booking: any) {
 // GET /api/bookings/[id] - Get a specific booking
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -53,8 +59,9 @@ export async function GET(
     }
 
     await dbConnect();
+    const { id } = await params;
 
-    const booking = await Booking.findById(params.id)
+    const booking = await Booking.findById(id)
       .populate({
         path: "guest",
         model: "User",
@@ -63,12 +70,12 @@ export async function GET(
       .populate({
         path: "room",
         model: "Room",
-        select: "roomNumber floor",
-      })
-      .populate({
-        path: "room.roomType",
-        model: "RoomType",
-        select: "name",
+        select: "roomNumber floor roomType",
+        populate: {
+          path: "roomType",
+          model: "RoomType",
+          select: "name",
+        },
       })
       .lean();
 
@@ -93,7 +100,7 @@ export async function GET(
 // PUT /api/bookings/[id] - Update a booking
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -102,6 +109,7 @@ export async function PUT(
     }
 
     await dbConnect();
+    const { id } = await params;
 
     const body = await request.json();
 
@@ -122,7 +130,7 @@ export async function PUT(
     const updateData = updateSchema.parse(body);
 
     // Check if booking exists
-    const existingBooking = await Booking.findById(params.id);
+    const existingBooking = await Booking.findById(id);
     if (!existingBooking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
@@ -176,11 +184,10 @@ export async function PUT(
     }
 
     // Update the booking
-    const updatedBooking = await Booking.findByIdAndUpdate(
-      params.id,
-      updateObj,
-      { new: true, runValidators: true }
-    )
+    const updatedBooking = await Booking.findByIdAndUpdate(id, updateObj, {
+      new: true,
+      runValidators: true,
+    })
       .populate({
         path: "guest",
         model: "User",
@@ -189,12 +196,12 @@ export async function PUT(
       .populate({
         path: "room",
         model: "Room",
-        select: "roomNumber floor",
-      })
-      .populate({
-        path: "room.roomType",
-        model: "RoomType",
-        select: "name",
+        select: "roomNumber floor roomType",
+        populate: {
+          path: "roomType",
+          model: "RoomType",
+          select: "name",
+        },
       })
       .lean();
 
@@ -219,7 +226,7 @@ export async function PUT(
 // DELETE /api/bookings/[id] - Delete a booking
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -228,9 +235,10 @@ export async function DELETE(
     }
 
     await dbConnect();
+    const { id } = await params;
 
     // Check if booking exists
-    const existingBooking = await Booking.findById(params.id);
+    const existingBooking = await Booking.findById(id);
     if (!existingBooking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
@@ -244,7 +252,7 @@ export async function DELETE(
     }
 
     // Delete the booking
-    await Booking.findByIdAndDelete(params.id);
+    await Booking.findByIdAndDelete(id);
 
     return NextResponse.json({
       message: "رزرو با موفقیت حذف شد",

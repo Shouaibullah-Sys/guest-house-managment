@@ -2,9 +2,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { Booking } from "@/models/Booking";
-import { User } from "@/models/User";
-import { Room } from "@/models/Room";
-import { RoomType } from "@/models/RoomType";
 import dbConnect from "@/lib/db";
 import { z } from "zod";
 import mongoose from "mongoose";
@@ -202,12 +199,12 @@ export async function GET(request: NextRequest) {
         model: "Room",
         select: "roomNumber floor roomType",
         options: { lean: true },
-      })
-      .populate({
-        path: "room.roomType",
-        model: "RoomType",
-        select: "name",
-        options: { lean: true },
+        populate: {
+          path: "roomType",
+          model: "RoomType",
+          select: "name",
+          options: { lean: true },
+        },
       })
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -412,12 +409,12 @@ export async function POST(request: NextRequest) {
         model: "Room",
         select: "roomNumber floor roomType",
         options: { lean: true },
-      })
-      .populate({
-        path: "room.roomType",
-        model: "RoomType",
-        select: "name",
-        options: { lean: true },
+        populate: {
+          path: "roomType",
+          model: "RoomType",
+          select: "name",
+          options: { lean: true },
+        },
       })
       .lean();
 

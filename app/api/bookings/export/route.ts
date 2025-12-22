@@ -10,25 +10,34 @@ import { z } from "zod";
 
 // Transform Booking document to CSV format
 function transformBookingToCSV(booking: any) {
+  // Helper function to convert Decimal128 to number
+  const convertToNumber = (value: any): number => {
+    if (typeof value === "number") return value;
+    if (value && typeof value === "object" && "$numberDecimal" in value) {
+      return parseFloat(value.$numberDecimal);
+    }
+    if (value && typeof value === "object" && "toString" in value) {
+      return parseFloat(value.toString());
+    }
+    return 0;
+  };
+
   return {
     bookingNumber: booking.bookingNumber,
-    guestName: booking.guestData?.name || "Unknown Guest",
-    guestEmail: booking.guestData?.email || "",
-    guestPhone: booking.guestData?.phone || "",
-    roomNumber: booking.roomData?.roomNumber || "Unknown",
-    roomType:
-      booking.roomData?.roomType?.name ||
-      booking.roomData?.roomType ||
-      "Unknown",
+    guestName: booking.guest?.name || "Unknown Guest",
+    guestEmail: booking.guest?.email || "",
+    guestPhone: booking.guest?.phone || "",
+    roomNumber: booking.room?.roomNumber || "Unknown",
+    roomType: booking.room?.roomType?.name || "Unknown",
     checkInDate: booking.checkInDate.toISOString().split("T")[0],
     checkOutDate: booking.checkOutDate.toISOString().split("T")[0],
     totalNights: booking.totalNights,
     adults: booking.adults,
     children: booking.children,
     infants: booking.infants,
-    totalAmount: Number(booking.totalAmount),
-    paidAmount: Number(booking.paidAmount),
-    outstandingAmount: Number(booking.outstandingAmount),
+    totalAmount: convertToNumber(booking.totalAmount),
+    paidAmount: convertToNumber(booking.paidAmount),
+    outstandingAmount: convertToNumber(booking.outstandingAmount),
     status: booking.status,
     paymentStatus: booking.paymentStatus,
     source: booking.source || "",
@@ -156,28 +165,20 @@ export async function GET(request: NextRequest) {
       .populate({
         path: "room",
         model: "Room",
-        select: "roomNumber floor",
-      })
-      .populate({
-        path: "room.roomType",
-        model: "RoomType",
-        select: "name",
+        select: "roomNumber floor roomType",
+        populate: {
+          path: "roomType",
+          model: "RoomType",
+          select: "name",
+        },
       })
       .sort({ createdAt: -1 })
       .lean();
 
     // Transform to CSV format
-    const csvData = bookings.map((booking: any) => {
-      const transformed = transformBookingToCSV(booking);
-      return {
-        ...transformed,
-        guestData: booking.guest,
-        roomData: {
-          ...booking.room,
-          roomType: booking.room?.roomType?.name || "Unknown",
-        },
-      };
-    });
+    const csvData = bookings.map((booking: any) =>
+      transformBookingToCSV(booking)
+    );
 
     // Convert to CSV
     const csvContent = arrayToCSV(csvData);

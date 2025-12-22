@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
 import {
   Calendar,
   Users,
@@ -29,10 +30,13 @@ import {
   Bed,
   CreditCard,
   Banknote,
+  Building2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { StripePaymentForm } from "@/components/payment/StripePaymentForm";
+import { BankPaymentDialog } from "@/components/booking/bank-payment-dialog";
+import { SuccessPopup } from "@/components/booking/success-popup";
 
 // Initialize Stripe
 const stripePromise = loadStripe(
@@ -50,7 +54,7 @@ interface BookingData {
   bookingId?: string;
 }
 
-type PaymentMethod = "cash" | "online";
+type PaymentMethod = "cash" | "bank" | "stripe";
 
 export default function CheckoutPage() {
   const { isSignedIn, userId } = useAuth();
@@ -64,6 +68,18 @@ export default function CheckoutPage() {
     null
   );
   const [bookingId, setBookingId] = useState<string | null>(null);
+  const [showBankPaymentDialog, setShowBankPaymentDialog] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [paymentSuccessData, setPaymentSuccessData] = useState<{
+    paymentMethod: PaymentMethod;
+    amount: number;
+    bookingDetails?: {
+      roomNumber: string;
+      checkInDate: string;
+      checkOutDate: string;
+      guestName?: string;
+    };
+  } | null>(null);
 
   useEffect(() => {
     if (!isSignedIn) {
@@ -106,6 +122,15 @@ export default function CheckoutPage() {
       setIsLoading(false);
     }
   }, [isSignedIn, router, searchParams]);
+
+  // Handle cleanup when component unmounts or user navigates away
+  useEffect(() => {
+    return () => {
+      // Clear any pending timeouts when component unmounts
+      setShowSuccessPopup(false);
+      setPaymentSuccessData(null);
+    };
+  }, []);
 
   const calculateNights = () => {
     if (!bookingData) return 0;
@@ -160,11 +185,32 @@ export default function CheckoutPage() {
   };
 
   const handleCashPayment = async () => {
+    if (!bookingData) return;
+
     try {
       setIsProcessing(true);
       const newBookingId = await createBooking();
-      toast.success("Booking confirmed successfully!");
+
+      // Store success data for popup
+      const successData = {
+        paymentMethod: "cash" as PaymentMethod,
+        amount: totalAmount,
+        bookingDetails: {
+          roomNumber: bookingData.room.roomNumber,
+          checkInDate: bookingData.dates.checkIn,
+          checkOutDate: bookingData.dates.checkOut,
+          guestName: bookingData.guestInfo?.name,
+        },
+      };
+
+      // Redirect to home first
       router.push("/");
+
+      // Show success popup after delay
+      setTimeout(() => {
+        setPaymentSuccessData(successData);
+        setShowSuccessPopup(true);
+      }, 2000); // 2 second delay
     } catch (error) {
       console.error("Cash booking error:", error);
       toast.error(
@@ -175,7 +221,11 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleOnlinePayment = async () => {
+  const handleBankPayment = () => {
+    setShowBankPaymentDialog(true);
+  };
+
+  const handleStripePayment = async () => {
     try {
       setIsProcessing(true);
       const newBookingId = await createBooking();
@@ -205,19 +255,73 @@ export default function CheckoutPage() {
 
       setStripeClientSecret(data.clientSecret);
     } catch (error) {
-      console.error("Online payment setup error:", error);
+      console.error("Stripe payment setup error:", error);
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to setup online payment"
+          : "Failed to setup Stripe payment"
       );
       setIsProcessing(false);
     }
   };
 
+  const handleBankPaymentSuccess = async () => {
+    if (!bookingData) return;
+
+    try {
+      // Store success data for popup
+      const successData = {
+        paymentMethod: "bank" as PaymentMethod,
+        amount: totalAmount,
+        bookingDetails: {
+          roomNumber: bookingData.room.roomNumber,
+          checkInDate: bookingData.dates.checkIn,
+          checkOutDate: bookingData.dates.checkOut,
+          guestName: bookingData.guestInfo?.name,
+        },
+      };
+
+      // Redirect to home first
+      router.push("/");
+
+      // Show success popup after delay
+      setTimeout(() => {
+        setPaymentSuccessData(successData);
+        setShowSuccessPopup(true);
+      }, 2000); // 2 second delay
+    } catch (error) {
+      console.error("Bank payment error:", error);
+      toast.error("Failed to complete booking");
+    }
+  };
+
+  const handleBankPaymentError = (error: string) => {
+    toast.error(error);
+  };
+
   const handleStripePaymentSuccess = () => {
-    toast.success("Payment successful!");
+    if (!bookingData) return;
+
+    // Store success data for popup
+    const successData = {
+      paymentMethod: "stripe" as PaymentMethod,
+      amount: totalAmount,
+      bookingDetails: {
+        roomNumber: bookingData.room.roomNumber,
+        checkInDate: bookingData.dates.checkIn,
+        checkOutDate: bookingData.dates.checkOut,
+        guestName: bookingData.guestInfo?.name,
+      },
+    };
+
+    // Redirect to home first
     router.push("/");
+
+    // Show success popup after delay
+    setTimeout(() => {
+      setPaymentSuccessData(successData);
+      setShowSuccessPopup(true);
+    }, 2000); // 2 second delay
   };
 
   const handleStripePaymentError = (error: string) => {
@@ -530,18 +634,37 @@ export default function CheckoutPage() {
 
                   <div
                     className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                      paymentMethod === "online"
+                      paymentMethod === "bank"
                         ? "border-amber-500 bg-amber-50 dark:bg-amber-950/20"
                         : "border-gray-200 dark:border-gray-700 hover:border-amber-300"
                     }`}
-                    onClick={() => setPaymentMethod("online")}
+                    onClick={() => setPaymentMethod("bank")}
                   >
                     <div className="flex items-center gap-3">
-                      <CreditCard className="h-5 w-5 text-blue-600" />
+                      <Building2 className="h-5 w-5 text-blue-600" />
                       <div>
-                        <h4 className="font-medium">Pay Online</h4>
+                        <h4 className="font-medium">Pay with Bank Card</h4>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Pay securely with Stripe
+                          Enter your bank card details to pay
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                      paymentMethod === "stripe"
+                        ? "border-amber-500 bg-amber-50 dark:bg-amber-950/20"
+                        : "border-gray-200 dark:border-gray-700 hover:border-amber-300"
+                    }`}
+                    onClick={() => setPaymentMethod("stripe")}
+                  >
+                    <div className="flex items-center gap-3">
+                      <CreditCard className="h-5 w-5 text-purple-600" />
+                      <div>
+                        <h4 className="font-medium">Pay with Stripe</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Pay securely with Stripe payment gateway
                         </p>
                       </div>
                     </div>
@@ -564,14 +687,18 @@ export default function CheckoutPage() {
                       <p className="text-sm text-gray-600 dark:text-gray-400">
                         {paymentMethod === "cash"
                           ? "You'll pay with cash upon arrival."
-                          : "You'll pay securely online with Stripe."}
+                          : paymentMethod === "bank"
+                          ? "You'll pay with your bank card."
+                          : "You'll pay securely with Stripe."}
                       </p>
 
                       <Button
                         onClick={
                           paymentMethod === "cash"
                             ? handleCashPayment
-                            : handleOnlinePayment
+                            : paymentMethod === "bank"
+                            ? handleBankPayment
+                            : handleStripePayment
                         }
                         disabled={isProcessing}
                         className="w-full bg-amber-500 hover:bg-amber-600 text-white"
@@ -582,7 +709,9 @@ export default function CheckoutPage() {
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             {paymentMethod === "cash"
                               ? "Confirming Booking..."
-                              : "Setting up Payment..."}
+                              : paymentMethod === "bank"
+                              ? "Processing Bank Payment..."
+                              : "Setting up Stripe Payment..."}
                           </>
                         ) : (
                           <>
@@ -591,10 +720,15 @@ export default function CheckoutPage() {
                                 <CheckCircle className="mr-2 h-4 w-4" />
                                 Confirm Booking (Cash)
                               </>
+                            ) : paymentMethod === "bank" ? (
+                              <>
+                                <Building2 className="mr-2 h-4 w-4" />
+                                Pay with Bank Card
+                              </>
                             ) : (
                               <>
                                 <CreditCard className="mr-2 h-4 w-4" />
-                                Pay Online
+                                Pay with Stripe
                               </>
                             )}
                           </>
@@ -640,26 +774,30 @@ export default function CheckoutPage() {
             </Card>
           </div>
         </div>
+
+        {/* Bank Payment Dialog */}
+        <BankPaymentDialog
+          open={showBankPaymentDialog}
+          onOpenChange={setShowBankPaymentDialog}
+          amount={totalAmount}
+          onPaymentSuccess={handleBankPaymentSuccess}
+          onPaymentError={handleBankPaymentError}
+        />
+
+        {/* Success Popup */}
+        {paymentSuccessData && (
+          <SuccessPopup
+            isOpen={showSuccessPopup}
+            onClose={() => {
+              setShowSuccessPopup(false);
+              setPaymentSuccessData(null);
+            }}
+            paymentMethod={paymentSuccessData.paymentMethod}
+            amount={paymentSuccessData.amount}
+            bookingDetails={paymentSuccessData.bookingDetails}
+          />
+        )}
       </div>
     </div>
-  );
-}
-
-// Helper component for labels
-function Label({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <label
-      className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${
-        className || ""
-      }`}
-    >
-      {children}
-    </label>
   );
 }

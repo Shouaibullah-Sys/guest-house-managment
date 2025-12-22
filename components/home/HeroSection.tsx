@@ -1,3 +1,5 @@
+// compoponents/home/HeroSection.tsx
+
 "use client";
 
 import { Righteous } from "next/font/google";
