@@ -245,26 +245,32 @@ export async function POST(request: NextRequest) {
 
     // Basic booking validation (excluding calculated fields)
     const bookingSchema = z.object({
-      guestId: z.string(),
-      roomId: z.string(),
+      guest: z.string(), // Clerk user ID or guest ID
+      room: z.string(), // Room ID
       checkInDate: z.string(),
       checkOutDate: z.string(),
       adults: z.number().min(1),
       children: z.number().min(0).default(0),
       infants: z.number().min(0).default(0),
+      totalNights: z.number().min(1).optional(), // Will be calculated if not provided
       roomRate: z.number().min(0),
+      totalAmount: z.number().min(0).optional(), // Will be calculated if not provided
+      status: z.string().optional(),
+      source: z.string().optional(),
       specialRequests: z.string().optional(),
       notes: z.string().optional(),
     });
 
     const rawBookingData = bookingSchema.parse(body);
 
-    // Calculate total nights and amount server-side
+    // Calculate total nights and amount server-side if not provided
     const checkInDate = new Date(rawBookingData.checkInDate);
     const checkOutDate = new Date(rawBookingData.checkOutDate);
     const timeDiff = checkOutDate.getTime() - checkInDate.getTime();
-    const totalNights = Math.ceil(timeDiff / (1000 * 3600 * 24));
-    const totalAmount = totalNights * rawBookingData.roomRate;
+    const totalNights =
+      rawBookingData.totalNights || Math.ceil(timeDiff / (1000 * 3600 * 24));
+    const totalAmount =
+      rawBookingData.totalAmount || totalNights * rawBookingData.roomRate;
 
     if (totalNights <= 0) {
       return NextResponse.json(
@@ -288,7 +294,7 @@ export async function POST(request: NextRequest) {
 
     // Check room availability
     const conflictingBooking = await Booking.findOne({
-      room: bookingData.roomId,
+      room: bookingData.room,
       status: { $in: ["confirmed", "checked_in"] },
       $or: [
         {
@@ -308,8 +314,8 @@ export async function POST(request: NextRequest) {
     // Create new booking
     const newBooking = new Booking({
       bookingNumber,
-      guest: bookingData.guestId,
-      room: bookingData.roomId,
+      guest: bookingData.guest,
+      room: bookingData.room,
       checkInDate: new Date(bookingData.checkInDate),
       checkOutDate: new Date(bookingData.checkOutDate),
       adults: bookingData.adults,

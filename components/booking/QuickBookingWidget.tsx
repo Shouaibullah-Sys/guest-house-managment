@@ -14,11 +14,17 @@ import {
   Star,
   MapPin,
   Clock,
+  UserCheck,
+  LogIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
+import { useAuthenticatedFetch } from "@/lib/auth-client";
+import { GuestInfoDialog } from "./guest-info-dialog";
+import { toast } from "sonner";
 
 interface Room {
   id: string;
@@ -35,7 +41,23 @@ interface Room {
   };
 }
 
+interface GuestData {
+  name?: string;
+  email?: string;
+  phone?: string;
+  nationality?: string;
+  idType?: string;
+  idNumber?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+}
+
 export default function QuickBookingWidget() {
+  const { isSignedIn, userId } = useAuth();
+  const authenticatedFetch = useAuthenticatedFetch();
+  const router = useRouter();
+
   const [isExpanded, setIsExpanded] = useState(false);
   const [dates, setDates] = useState({
     checkIn: "",
@@ -49,7 +71,11 @@ export default function QuickBookingWidget() {
   const [isBooking, setIsBooking] = useState(false);
   const [dateError, setDateError] = useState("");
 
-  const router = useRouter();
+  // Guest info collection states
+  const [showGuestInfoDialog, setShowGuestInfoDialog] = useState(false);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [currentGuestData, setCurrentGuestData] = useState<GuestData>({});
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
 
   // Set default dates
   useEffect(() => {
@@ -72,8 +98,54 @@ export default function QuickBookingWidget() {
     });
   }, []);
 
+  // Check user's existing guest information
+  const checkUserGuestInfo = async () => {
+    if (!userId) return { missingFields: [], existingData: null };
+
+    try {
+      // Get current user data from our database using their Clerk ID
+      const response = await authenticatedFetch(
+        `/api/admin/users?search=${userId}&limit=1`
+      );
+
+      if (response.ok) {
+        const usersData = await response.json();
+
+        if (usersData.data && usersData.data.length > 0) {
+          const existingData = usersData.data[0];
+
+          // Define required fields for booking
+          const requiredFields = [
+            "name",
+            "email",
+            "phone",
+            "nationality",
+            "idNumber",
+          ];
+
+          // Check which required fields are missing
+          const missingFields = requiredFields.filter((field) => {
+            const value = existingData[field as keyof typeof existingData];
+            return !value || (typeof value === "string" && value.trim() === "");
+          });
+
+          return { missingFields, existingData };
+        }
+      }
+    } catch (error) {
+      console.log("User guest info not found or error occurred:", error);
+    }
+
+    // If we get here, user doesn't exist in our guest database
+    // For now, assume all fields are missing for new users
+    return {
+      missingFields: ["name", "email", "phone", "nationality", "idNumber"],
+      existingData: null,
+    };
+  };
+
   // Handle check availability button click
-  const handleCheckAvailability = () => {
+  const handleCheckAvailability = async () => {
     if (!dates.checkIn || !dates.checkOut) {
       setDateError("Please select both check-in and check-out dates");
       return;
@@ -95,84 +167,132 @@ export default function QuickBookingWidget() {
     }
 
     setDateError("");
-    // For demo, show sample rooms
-    showSampleRooms();
-  };
-
-  // Show sample rooms for demo
-  const showSampleRooms = () => {
     setIsLoadingRooms(true);
-    setTimeout(() => {
-      setAvailableRooms([
-        {
-          id: "1",
-          roomNumber: "101",
-          floor: 1,
-          status: "available",
-          roomType: {
-            id: "suite-1",
-            name: "Presidential Suite",
-            code: "PRS",
-            basePrice: 1200,
-            maxOccupancy: 4,
-            amenities: [
-              "Private Pool",
-              "Butler Service",
-              "Jacuzzi",
-              "Bar",
-              "Cinema",
-            ],
-          },
-        },
-        {
-          id: "2",
-          roomNumber: "202",
-          floor: 2,
-          status: "available",
-          roomType: {
-            id: "suite-2",
-            name: "Ocean View Suite",
-            code: "OVS",
-            basePrice: 850,
-            maxOccupancy: 3,
-            amenities: ["Balcony", "Mini Bar", "Spa Bath", "Coffee Machine"],
-          },
-        },
-        {
-          id: "3",
-          roomNumber: "305",
-          floor: 3,
-          status: "available",
-          roomType: {
-            id: "suite-3",
-            name: "Executive Suite",
-            code: "EXS",
-            basePrice: 650,
-            maxOccupancy: 2,
-            amenities: [
-              "Work Desk",
-              "Premium WiFi",
-              "Smart TV",
-              "Coffee Service",
-            ],
-          },
-        },
-      ]);
+
+    try {
+      // Fetch available rooms from our API
+      const response = await authenticatedFetch("/api/rooms/availability", {
+        method: "POST",
+        body: JSON.stringify({
+          checkIn: dates.checkIn,
+          checkOut: dates.checkOut,
+          guests: dates.guests,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("API Error:", response.status, errorData);
+
+        // More robust error handling
+        let errorMessage = "Failed to fetch available rooms";
+
+        if (errorData && errorData.error) {
+          errorMessage = errorData.error;
+        } else if (response.status === 401) {
+          errorMessage = "You need to sign in to check room availability";
+        } else if (response.status === 500) {
+          errorMessage = "Server error: Please try again later";
+        } else if (response.status === 400) {
+          errorMessage =
+            "Invalid request: Please check your dates and try again";
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      setAvailableRooms(data.data || []);
       setShowRoomsModal(true);
+    } catch (error) {
+      console.error("Error fetching rooms:", error);
+
+      // More specific error messages based on the error type
+      let errorMessage = "Failed to check availability";
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === "object" && error !== null) {
+        // Try to extract error message from different error formats
+        errorMessage = (error as any).message || errorMessage;
+      }
+
+      toast.error(errorMessage);
+      setAvailableRooms([]);
+    } finally {
       setIsLoadingRooms(false);
-    }, 1000);
+    }
   };
 
-  // Handle room selection
-  const handleRoomSelect = (room: Room) => {
+  // Handle room selection and booking flow
+  const handleRoomSelect = async (room: Room) => {
+    if (!isSignedIn) {
+      // Redirect to sign in page
+      router.push("/sign-in");
+      return;
+    }
+
     setIsBooking(true);
-    setTimeout(() => {
-      alert(
-        `Successfully booked ${room.roomType.name}! Your confirmation will be sent via email.`
-      );
+    setSelectedRoom(room);
+
+    try {
+      // Check user's existing guest information
+      const { missingFields, existingData } = await checkUserGuestInfo();
+
+      if (missingFields.length > 0) {
+        // Show guest info dialog to collect missing information
+        setMissingFields(missingFields);
+        setCurrentGuestData(existingData || {});
+        setShowGuestInfoDialog(true);
+        setIsBooking(false);
+        return;
+      }
+
+      // All required information is available, proceed to checkout
+      await proceedToCheckout(room, existingData || {});
+    } catch (error) {
+      console.error("Error processing booking:", error);
+      toast.error("Failed to process booking. Please try again.");
       setIsBooking(false);
-      setShowRoomsModal(false);
-    }, 1500);
+    }
+  };
+
+  // Proceed to checkout with guest data
+  const proceedToCheckout = async (room: Room, guestData: GuestData) => {
+    try {
+      // Create URL parameters for checkout
+      const params = new URLSearchParams({
+        room: encodeURIComponent(JSON.stringify(room)),
+        checkIn: dates.checkIn,
+        checkOut: dates.checkOut,
+        guests: dates.guests.toString(),
+        guestInfo: encodeURIComponent(JSON.stringify(guestData)),
+      });
+
+      // Navigate to checkout page
+      router.push(`/checkout?${params.toString()}`);
+    } catch (error) {
+      console.error("Error navigating to checkout:", error);
+      toast.error("Failed to proceed to checkout");
+      setIsBooking(false);
+    }
+  };
+
+  // Handle guest info completion
+  const handleGuestInfoComplete = async (completedGuestData: GuestData) => {
+    if (!selectedRoom) return;
+
+    try {
+      // Update or create guest record if needed
+      // For now, we'll just proceed to checkout with the provided data
+      await proceedToCheckout(selectedRoom, completedGuestData);
+    } catch (error) {
+      console.error("Error completing guest info:", error);
+      toast.error("Failed to save guest information");
+    } finally {
+      setShowGuestInfoDialog(false);
+      setIsBooking(false);
+    }
   };
 
   // Floating particle effect
@@ -300,6 +420,23 @@ export default function QuickBookingWidget() {
               </div>
 
               <div className="flex items-center gap-4 relative z-10">
+                {/* Authentication Status */}
+                {isSignedIn ? (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-green-100 dark:bg-green-900/30 rounded-full">
+                    <UserCheck className="w-4 h-4 text-green-600" />
+                    <span className="text-xs font-medium text-green-700 dark:text-green-300">
+                      Logged In
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-amber-100 dark:bg-amber-900/30 rounded-full">
+                    <LogIn className="w-4 h-4 text-amber-600" />
+                    <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                      Sign In Required
+                    </span>
+                  </div>
+                )}
+
                 <motion.div
                   animate={{ rotate: isExpanded ? 180 : 0 }}
                   transition={{ type: "spring", stiffness: 200, damping: 20 }}
@@ -675,6 +812,15 @@ export default function QuickBookingWidget() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Guest Information Dialog */}
+      <GuestInfoDialog
+        open={showGuestInfoDialog}
+        onOpenChange={setShowGuestInfoDialog}
+        missingFields={missingFields}
+        onComplete={handleGuestInfoComplete}
+        isLoading={isBooking}
+      />
     </>
   );
 }
