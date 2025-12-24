@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -57,6 +58,7 @@ import {
   Bell,
   Settings,
   HelpCircle,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -175,9 +177,9 @@ const fetchHotelStats = async (dateRange?: DateRange): Promise<HotelStats> => {
     };
   } catch (error) {
     console.error("Error fetching hotel stats:", error);
-    toast.error("Failed to load hotel statistics", {
+    toast.error("آمار هتل بارگیری نشد", {
       description:
-        error instanceof Error ? error.message : "Unknown error occurred",
+        error instanceof Error ? error.message : "خطای ناشناخته رخ داده است",
     });
     // Return default stats to prevent UI breaking
     return {
@@ -230,9 +232,9 @@ const fetchRoomStatus = async (): Promise<RoomStatus> => {
     return roomStatus;
   } catch (error) {
     console.error("Error fetching room status:", error);
-    toast.error("Failed to load room status", {
+    toast.error("وضعیت اتاق‌ها بارگیری نشد", {
       description:
-        error instanceof Error ? error.message : "Unknown error occurred",
+        error instanceof Error ? error.message : "خطای ناشناخته رخ داده است",
     });
     return {
       available: 0,
@@ -352,7 +354,7 @@ const DateRangePicker = ({
 
   const quickFilters = [
     {
-      label: "Today",
+      label: "امروز",
       value: "today",
       getRange: () => ({
         from: startOfToday(),
@@ -360,7 +362,7 @@ const DateRangePicker = ({
       }),
     },
     {
-      label: "This Week",
+      label: "این هفته",
       value: "thisWeek",
       getRange: () => ({
         from: startOfWeek(new Date()),
@@ -368,7 +370,7 @@ const DateRangePicker = ({
       }),
     },
     {
-      label: "This Month",
+      label: "این ماه",
       value: "thisMonth",
       getRange: () => ({
         from: startOfMonth(new Date()),
@@ -376,7 +378,7 @@ const DateRangePicker = ({
       }),
     },
     {
-      label: "All Time",
+      label: "همه زمان",
       value: "lifetime",
       getRange: () => ({
         from: new Date(2020, 0, 1),
@@ -411,7 +413,7 @@ const DateRangePicker = ({
               format(dateRange.from, "LLL dd, y")
             )
           ) : (
-            <span>Select date range</span>
+            <span>انتخاب محدوده تاریخ</span>
           )}
         </Button>
       </PopoverTrigger>
@@ -454,14 +456,14 @@ const DateRangePicker = ({
               onClick={() => setIsOpen(false)}
               className="text-xs"
             >
-              Cancel
+              لغو
             </Button>
             <Button
               size="sm"
               onClick={() => setIsOpen(false)}
               className="text-xs"
             >
-              Confirm
+              تایید
             </Button>
           </div>
         </div>
@@ -480,7 +482,7 @@ const getRevenueCardInfo = (dateRange: DateRange) => {
   // Check if it's today
   if (isSameDay(dateRange.from, today) && isSameDay(dateRange.to, today)) {
     return {
-      title: "Today's Revenue",
+      title: "درآمد امروز",
       dateText: format(today, "MMM dd, yyyy"),
     };
   }
@@ -492,8 +494,8 @@ const getRevenueCardInfo = (dateRange: DateRange) => {
     isSameWeek(dateRange.from, dateRange.to)
   ) {
     return {
-      title: "This Week's Revenue",
-      dateText: "This week",
+      title: "درآمد این هفته",
+      dateText: "این هفته",
     };
   }
 
@@ -504,8 +506,8 @@ const getRevenueCardInfo = (dateRange: DateRange) => {
     isSameMonth(dateRange.from, dateRange.to)
   ) {
     return {
-      title: "This Month's Revenue",
-      dateText: "This month",
+      title: "درآمد این ماه",
+      dateText: "این ماه",
     };
   }
 
@@ -515,15 +517,15 @@ const getRevenueCardInfo = (dateRange: DateRange) => {
     isSameDay(dateRange.to, today)
   ) {
     return {
-      title: "Total Revenue",
-      dateText: "All time",
+      title: "کل درآمد",
+      dateText: "همه زمان",
     };
   }
 
   // Check if it's a custom single day
   if (isSameDay(dateRange.from, dateRange.to)) {
     return {
-      title: "Daily Revenue",
+      title: "درآمد روزانه",
       dateText: format(dateRange.from, "MMM dd, yyyy"),
     };
   }
@@ -532,7 +534,7 @@ const getRevenueCardInfo = (dateRange: DateRange) => {
   const dayDifference = differenceInDays(dateRange.to, dateRange.from);
   if (dayDifference <= 7) {
     return {
-      title: `${dayDifference}-Day Revenue`,
+      title: `درآمد ${dayDifference} روز`,
       dateText: `${format(dateRange.from, "MMM dd")} - ${format(
         dateRange.to,
         "MMM dd"
@@ -542,7 +544,7 @@ const getRevenueCardInfo = (dateRange: DateRange) => {
 
   // Default custom range
   return {
-    title: "Revenue for Selected Period",
+    title: "درآمد برای دوره انتخاب شده",
     dateText: `${format(dateRange.from, "MMM dd, yyyy")} - ${format(
       dateRange.to,
       "MMM dd, yyyy"
@@ -556,15 +558,12 @@ const BookingTrendChart = ({ data }: { data: BookingTrend[] }) => {
     data?.filter((item) => item && item.date && item.bookings !== undefined) ||
     [];
 
-  console.log("📈 Booking Chart - Raw data:", data);
-  console.log("📈 Booking Chart - Valid data:", validData);
-
   if (validData.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-48 sm:h-64 text-muted-foreground">
         <BarChart3 className="h-12 w-12 mb-2 opacity-50" />
-        <p>No booking data available</p>
-        <p className="text-xs mt-1">Booking trends will appear here</p>
+        <p>داده‌ای برای رزروها موجود نیست</p>
+        <p className="text-xs mt-1">روند رزروها در اینجا نمایش داده می‌شود</p>
       </div>
     );
   }
@@ -573,78 +572,97 @@ const BookingTrendChart = ({ data }: { data: BookingTrend[] }) => {
   const maxRevenue = Math.max(...validData.map((item) => item.revenue), 1);
   const maxValue = Math.max(maxBookings, maxRevenue);
 
+  // Calculate dynamic bar width based on number of data points
+  const barWidth = Math.max(16, Math.min(40, 400 / validData.length));
+
   return (
-    <div className="w-full h-48 sm:h-64 flex items-end justify-between gap-2 sm:gap-4 pt-8 px-2 relative">
-      {/* Chart Grid Lines */}
-      <div className="absolute inset-0 flex flex-col justify-between">
-        {[0.2, 0.4, 0.6, 0.8, 1].map((line, index) => (
-          <div
-            key={index}
-            className="border-t border-gray-200 dark:border-gray-700 w-full"
-          />
-        ))}
-      </div>
-
-      {validData.map((item, index) => (
-        <div
-          key={`${item.date}-${index}`}
-          className="flex flex-col items-center flex-1 z-10"
-        >
-          {/* Date Label */}
-          <div className="text-xs text-muted-foreground mb-2">
-            {format(new Date(item.date), "dd/MM")}
+    <div className="w-full h-48 sm:h-64 flex flex-col">
+      {/* Chart Container */}
+      <div className="flex-1 min-h-0 relative overflow-hidden">
+        <div className="absolute inset-0 flex items-end justify-between gap-1 sm:gap-2 px-1 sm:px-2 pb-8">
+          {/* Chart Grid Lines */}
+          <div className="absolute inset-0 flex flex-col justify-between">
+            {[0.2, 0.4, 0.6, 0.8, 1].map((line, index) => (
+              <div
+                key={index}
+                className="border-t border-gray-200 dark:border-gray-700 w-full"
+              />
+            ))}
           </div>
 
-          {/* Bars Container */}
-          <div className="flex items-end gap-1 w-full h-32 justify-center">
-            {/* Bookings Bar */}
+          {validData.map((item, index) => (
             <div
-              className="bg-blue-500 rounded-t transition-all duration-500 hover:bg-blue-600 min-h-0.5 relative group"
-              style={{
-                height: `${Math.max((item.bookings / maxValue) * 80, 2)}%`,
-                width: "24px",
-              }}
-              title={`Bookings: ${item.bookings}`}
+              key={`${item.date}-${index}`}
+              className="flex flex-col items-center flex-1 z-10"
+              style={{ maxWidth: `${barWidth * 2}px` }}
             >
-              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                {item.bookings}
+              {/* Bars Container */}
+              <div className="flex items-end gap-0.5 sm:gap-1 w-full h-full justify-center">
+                {/* Bookings Bar */}
+                <div
+                  className="bg-blue-500 rounded-t transition-all duration-500 hover:bg-blue-600 min-h-0.5 relative group"
+                  style={{
+                    height: `${Math.max((item.bookings / maxValue) * 80, 2)}%`,
+                    width: `${barWidth}px`,
+                  }}
+                  title={`رزروها: ${item.bookings}`}
+                >
+                  <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    {item.bookings}
+                  </div>
+                </div>
+
+                {/* Revenue Bar */}
+                <div
+                  className="bg-green-500 rounded-t transition-all duration-500 hover:bg-green-600 min-h-0.5 relative group"
+                  style={{
+                    height: `${Math.max((item.revenue / maxValue) * 80, 2)}%`,
+                    width: `${barWidth}px`,
+                  }}
+                  title={`درآمد: $${item.revenue.toLocaleString()}`}
+                >
+                  <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    ${item.revenue.toLocaleString()}
+                  </div>
+                </div>
               </div>
             </div>
+          ))}
 
-            {/* Revenue Bar */}
-            <div
-              className="bg-green-500 rounded-t transition-all duration-500 hover:bg-green-600 min-h-0.5 relative group"
-              style={{
-                height: `${Math.max((item.revenue / maxValue) * 80, 2)}%`,
-                width: "24px",
-              }}
-              title={`Revenue: $${item.revenue.toLocaleString()}`}
-            >
-              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                ${item.revenue.toLocaleString()}
-              </div>
-            </div>
-          </div>
-
-          {/* Data Values Below */}
-          <div className="mt-1 text-xs text-center">
-            <div className="text-blue-600 font-medium">
-              {item.bookings > 0 ? item.bookings : "0"}
-            </div>
-            <div className="text-green-600 font-medium">
-              ${item.revenue > 0 ? item.revenue.toLocaleString() : "0"}
-            </div>
+          {/* Y-axis Labels */}
+          <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-muted-foreground pl-1">
+            <span>{maxValue.toLocaleString()}</span>
+            <span>{(maxValue * 0.75).toLocaleString()}</span>
+            <span>{(maxValue * 0.5).toLocaleString()}</span>
+            <span>{(maxValue * 0.25).toLocaleString()}</span>
+            <span>0</span>
           </div>
         </div>
-      ))}
+      </div>
 
-      {/* Y-axis Labels */}
-      <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-muted-foreground">
-        <span>{maxValue.toLocaleString()}</span>
-        <span>{(maxValue * 0.75).toLocaleString()}</span>
-        <span>{(maxValue * 0.5).toLocaleString()}</span>
-        <span>{(maxValue * 0.25).toLocaleString()}</span>
-        <span>0</span>
+      {/* Date Labels */}
+      <div className="h-8 mt-2 overflow-x-auto">
+        <div className="flex justify-between min-w-full px-1 sm:px-2">
+          {validData.map((item, index) => (
+            <div
+              key={`${item.date}-label-${index}`}
+              className="text-xs text-muted-foreground text-center"
+              style={{ minWidth: `${barWidth * 2}px` }}
+            >
+              <div className="whitespace-nowrap">
+                {format(new Date(item.date), "dd/MM")}
+              </div>
+              <div className="text-xs text-center mt-1">
+                <div className="text-blue-600 font-medium">
+                  {item.bookings > 0 ? item.bookings : "0"}
+                </div>
+                <div className="text-green-600 font-medium">
+                  ${item.revenue > 0 ? item.revenue.toLocaleString() : "0"}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -661,17 +679,17 @@ const RoomStatusChart = ({ data }: { data: RoomStatus }) => {
   if (total === 0) {
     return (
       <div className="text-center text-muted-foreground">
-        No room data available
+        داده‌ای برای اتاق‌ها موجود نیست
       </div>
     );
   }
 
   const statusData = [
-    { label: "Available", value: data.available, color: "#22c55e" },
-    { label: "Occupied", value: data.occupied, color: "#3b82f6" },
-    { label: "Maintenance", value: data.maintenance, color: "#ef4444" },
-    { label: "Cleaning", value: data.cleaning, color: "#f59e0b" },
-    { label: "Reserved", value: data.reserved, color: "#8b5cf6" },
+    { label: "موجود", value: data.available, color: "#22c55e" },
+    { label: "اشغال شده", value: data.occupied, color: "#3b82f6" },
+    { label: "تعمیر", value: data.maintenance, color: "#ef4444" },
+    { label: "نظافت", value: data.cleaning, color: "#f59e0b" },
+    { label: "رزرو شده", value: data.reserved, color: "#8b5cf6" },
   ];
 
   return (
@@ -680,7 +698,7 @@ const RoomStatusChart = ({ data }: { data: RoomStatus }) => {
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
             <div className="text-lg sm:text-2xl font-bold">{total}</div>
-            <div className="text-xs text-muted-foreground">Total Rooms</div>
+            <div className="text-xs text-muted-foreground">کل اتاق‌ها</div>
           </div>
         </div>
         <svg
@@ -734,31 +752,31 @@ const RoomStatusChart = ({ data }: { data: RoomStatus }) => {
 const MobileRoomStatusTable = ({ roomStatus }: { roomStatus: RoomStatus }) => {
   const statusItems = [
     {
-      label: "Available",
+      label: "موجود",
       value: roomStatus.available,
       color: "text-green-600",
       bgColor: "bg-green-50",
     },
     {
-      label: "Occupied",
+      label: "اشغال شده",
       value: roomStatus.occupied,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
     },
     {
-      label: "Maintenance",
+      label: "تعمیر",
       value: roomStatus.maintenance,
       color: "text-red-600",
       bgColor: "bg-red-50",
     },
     {
-      label: "Cleaning",
+      label: "نظافت",
       value: roomStatus.cleaning,
       color: "text-amber-600",
       bgColor: "bg-amber-50",
     },
     {
-      label: "Reserved",
+      label: "رزرو شده",
       value: roomStatus.reserved,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
@@ -790,58 +808,99 @@ const MobileRoomStatusTable = ({ roomStatus }: { roomStatus: RoomStatus }) => {
 };
 
 // Quick Actions Component
-const QuickActions = () => {
+interface QuickActionsProps {
+  onGenerateReport: () => void;
+  isGeneratingReport: boolean;
+  reportDate: string;
+  setReportDate: (date: string) => void;
+}
+
+const QuickActions: React.FC<QuickActionsProps> = ({
+  onGenerateReport,
+  isGeneratingReport,
+  reportDate,
+  setReportDate,
+}) => {
   return (
     <Card className="p-4">
       <h3 className="font-medium mb-3 flex items-center gap-2">
         <Settings className="h-4 w-4" />
-        Quick Actions
+        اقدامات سریع
       </h3>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          asChild
-          className="h-auto p-3 flex-col"
-        >
-          <Link href="/admin/rooms">
-            <BedDouble className="h-4 w-4 mb-1" />
-            <span className="text-xs">Rooms</span>
-          </Link>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          asChild
-          className="h-auto p-3 flex-col"
-        >
-          <Link href="/admin/bookings">
-            <Calendar className="h-4 w-4 mb-1" />
-            <span className="text-xs">Bookings</span>
-          </Link>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          asChild
-          className="h-auto p-3 flex-col"
-        >
-          <Link href="/admin/guests">
-            <Users className="h-4 w-4 mb-1" />
-            <span className="text-xs">Guests</span>
-          </Link>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          asChild
-          className="h-auto p-3 flex-col"
-        >
-          <Link href="/admin/test">
-            <HelpCircle className="h-4 w-4 mb-1" />
-            <span className="text-xs">Test API</span>
-          </Link>
-        </Button>
+      <div className="space-y-4">
+        {/* Report Generation Section */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-muted-foreground">
+            گزارش روزانه میهمانان
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={reportDate}
+              onChange={(e) => setReportDate(e.target.value)}
+              className="flex-1 px-3 py-2 text-sm border rounded-md bg-background"
+              max={new Date().toISOString().split("T")[0]}
+            />
+            <Button
+              onClick={onGenerateReport}
+              disabled={isGeneratingReport}
+              size="sm"
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              {isGeneratingReport ? "در حال تولید..." : "دانلود PDF"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Quick Navigation */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="h-auto p-3 flex-col"
+          >
+            <Link href="/admin/rooms">
+              <BedDouble className="h-4 w-4 mb-1" />
+              <span className="text-xs">اتاق‌ها</span>
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="h-auto p-3 flex-col"
+          >
+            <Link href="/admin/bookings">
+              <CalendarIcon className="h-4 w-4 mb-1" />
+              <span className="text-xs">رزروها</span>
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="h-auto p-3 flex-col"
+          >
+            <Link href="/admin/guests">
+              <Users className="h-4 w-4 mb-1" />
+              <span className="text-xs">مهمانان</span>
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="h-auto p-3 flex-col"
+          >
+            <Link href="/admin/test">
+              <HelpCircle className="h-4 w-4 mb-1" />
+              <span className="text-xs">تست API</span>
+            </Link>
+          </Button>
+        </div>
       </div>
     </Card>
   );
@@ -860,8 +919,8 @@ const AlertSystem = ({
   if (hotelStats.occupancyRate < 50) {
     alerts.push({
       type: "warning" as const,
-      message: "Low occupancy rate",
-      description: `Only ${hotelStats.occupancyRate}% of rooms are occupied`,
+      message: "نرخ اشغال پایین",
+      description: `فقط ${hotelStats.occupancyRate}% از اتاق‌ها اشغال شده‌اند`,
       icon: AlertTriangle,
     });
   }
@@ -869,8 +928,8 @@ const AlertSystem = ({
   if (hotelStats.occupiedRooms > hotelStats.totalRooms * 0.9) {
     alerts.push({
       type: "info" as const,
-      message: "High occupancy",
-      description: `${hotelStats.occupancyRate}% occupancy - near capacity`,
+      message: "اشغال بالا",
+      description: `${hotelStats.occupancyRate}% اشغال - نزدیک به ظرفیت`,
       icon: Bell,
     });
   }
@@ -878,8 +937,8 @@ const AlertSystem = ({
   if (hotelStats.checkInsToday > 5) {
     alerts.push({
       type: "info" as const,
-      message: "Busy check-in day",
-      description: `${hotelStats.checkInsToday} guest arrivals scheduled`,
+      message: "روز شلوغ ورود",
+      description: `${hotelStats.checkInsToday} ورود مهمان برنامه‌ریزی شده`,
       icon: UserCheck,
     });
   }
@@ -890,7 +949,7 @@ const AlertSystem = ({
     <Card className="p-4 border-l-4 border-l-blue-500">
       <h3 className="font-medium mb-3 flex items-center gap-2">
         <Bell className="h-4 w-4" />
-        System Alerts
+        هشدارهای سیستم
       </h3>
       <div className="space-y-2">
         {alerts.map((alert, index) => {
@@ -925,6 +984,10 @@ export default function HotelAdminDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [reportDate, setReportDate] = useState<string>(
+    new Date().toISOString().split("T")[0]
+  );
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   // Get dynamic revenue card info based on date range
   const revenueCardInfo = getRevenueCardInfo(dateRange);
@@ -988,13 +1051,13 @@ export default function HotelAdminDashboard() {
         refetchRevenue(),
       ]);
       setLastUpdated(new Date());
-      toast.success("Dashboard data refreshed successfully", {
-        description: `Updated at ${new Date().toLocaleTimeString()}`,
+      toast.success("داده‌های داشبورد با موفقیت تازه شد", {
+        description: `به‌روز شده در ${new Date().toLocaleTimeString()}`,
       });
     } catch (error) {
       console.error("Error refreshing data:", error);
-      toast.error("Failed to refresh dashboard data", {
-        description: "Please check your connection and try again",
+      toast.error("تازه‌سازی داده‌های داشبورد ناموفق بود", {
+        description: "لطفاً اتصال خود را بررسی کرده و دوباره امتحان کنید",
       });
     } finally {
       setIsRefreshing(false);
@@ -1019,24 +1082,24 @@ export default function HotelAdminDashboard() {
 
     // Check for low occupancy rate
     if (hotelStats.occupancyRate < 50) {
-      toast.warning("Low Occupancy Alert", {
-        description: `Occupancy rate is ${hotelStats.occupancyRate}% - below target threshold`,
+      toast.warning("هشدار اشغال پایین", {
+        description: `نرخ اشغال ${hotelStats.occupancyRate}% است - زیر آستانه هدف`,
         duration: 5000,
       });
     }
 
     // Check for high occupancy rate
     if (hotelStats.occupancyRate > 90) {
-      toast.success("High Occupancy Alert", {
-        description: `Occupancy rate is ${hotelStats.occupancyRate}% - excellent performance!`,
+      toast.success("هشدار اشغال بالا", {
+        description: `نرخ اشغال ${hotelStats.occupancyRate}% است - عملکرد عالی!`,
         duration: 5000,
       });
     }
 
     // Check for many check-ins today
     if (hotelStats.checkInsToday > 10) {
-      toast.info("Busy Check-in Day", {
-        description: `${hotelStats.checkInsToday} guest check-ins scheduled for today`,
+      toast.info("روز شلوغ ورود", {
+        description: `${hotelStats.checkInsToday} ورود مهمان برای امروز برنامه‌ریزی شده`,
         duration: 4000,
       });
     }
@@ -1069,9 +1132,43 @@ export default function HotelAdminDashboard() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    toast.success("Dashboard data exported successfully", {
-      description: "JSON file downloaded to your device",
+    toast.success("داده‌های داشبورد با موفقیت صادر شد", {
+      description: "فایل JSON در دستگاه شما دانلود شد",
     });
+  };
+
+  // Generate Daily Guest Report PDF
+  const generateGuestReport = async () => {
+    setIsGeneratingReport(true);
+    try {
+      const response = await fetch(
+        `/api/reports/daily-guests?date=${reportDate}`
+      );
+      if (!response.ok) {
+        throw new Error("Failed to generate report");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `گزارش-میهمانان-${reportDate}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success("گزارش میهمانان با موفقیت تولید شد", {
+        description: "فایل PDF در دستگاه شما دانلود شد",
+      });
+    } catch (error) {
+      console.error("Error generating guest report:", error);
+      toast.error("خطا در تولید گزارش", {
+        description: "لطفاً دوباره تلاش کنید",
+      });
+    } finally {
+      setIsGeneratingReport(false);
+    }
   };
 
   // Calculate occupancy rate
@@ -1093,8 +1190,8 @@ export default function HotelAdminDashboard() {
       <div className="container mx-auto py-6 px-4 sm:px-6">
         <div className="flex items-center justify-center min-h-96">
           <Loader
-            title="Loading hotel dashboard..."
-            subtitle="Please wait"
+            title="در حال بارگیری داشبورد هتل..."
+            subtitle="لطفاً منتظر بمانید"
             size="md"
           />
         </div>
@@ -1108,16 +1205,16 @@ export default function HotelAdminDashboard() {
         <div className="text-center py-8">
           <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
           <h2 className="text-xl font-bold text-destructive mb-2">
-            Error loading dashboard
+            خطا در بارگیری داشبورد
           </h2>
           <p className="text-muted-foreground mb-4">
-            Failed to load hotel dashboard data
+            بارگیری داده‌های داشبورد هتل ناموفق بود
           </p>
           <Button onClick={refreshAll} disabled={isRefreshing}>
             {isRefreshing ? (
               <RefreshCw className="h-4 w-4 animate-spin mr-2" />
             ) : null}
-            Try Again
+            دوباره امتحان کنید
           </Button>
         </div>
       </div>
@@ -1130,10 +1227,10 @@ export default function HotelAdminDashboard() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-            Hotel Management Dashboard
+            داشبورد مدیریت هتل
           </h1>
           <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-            Complete overview of your hotel operations
+            نمای کامل عملیات هتل شما
           </p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -1143,7 +1240,7 @@ export default function HotelAdminDashboard() {
                 autoRefresh ? "bg-green-500 animate-pulse" : "bg-gray-400"
               }`}
             ></div>
-            {autoRefresh ? "Auto-refresh" : "Manual"}
+            {autoRefresh ? "تازه‌سازی خودکار" : "دستی"}
           </div>
           <Button
             variant="outline"
@@ -1156,7 +1253,7 @@ export default function HotelAdminDashboard() {
                 autoRefresh ? "bg-green-500" : "bg-gray-400"
               }`}
             ></div>
-            Auto
+            خودکار
           </Button>
           <Button
             variant="outline"
@@ -1165,7 +1262,7 @@ export default function HotelAdminDashboard() {
             className="hidden sm:flex items-center gap-2"
           >
             <Download className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Export</span>
+            <span className="hidden sm:inline">خروجی</span>
           </Button>
           <div className="text-xs sm:text-sm text-muted-foreground shrink-0">
             {lastUpdated.toLocaleTimeString()}
@@ -1182,7 +1279,7 @@ export default function HotelAdminDashboard() {
             ) : (
               <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
             )}
-            <span className="hidden sm:inline">Refresh</span>
+            <span className="hidden sm:inline">تازه‌سازی</span>
           </Button>
         </div>
       </div>
@@ -1195,7 +1292,7 @@ export default function HotelAdminDashboard() {
               statsError ? "bg-red-500" : "bg-green-500"
             }`}
           ></div>
-          <span>Data Status: {statsError ? "Error" : "Connected"}</span>
+          <span>وضعیت داده: {statsError ? "خطا" : "متصل"}</span>
         </div>
         <div className="flex items-center gap-2">
           <div
@@ -1203,12 +1300,12 @@ export default function HotelAdminDashboard() {
               autoRefresh ? "bg-blue-500 animate-pulse" : "bg-gray-400"
             }`}
           ></div>
-          <span>Auto-refresh: {autoRefresh ? "On" : "Off"}</span>
+          <span>تازه‌سازی خودکار: {autoRefresh ? "فعال" : "غیرفعال"}</span>
         </div>
         {hotelStats && (
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-            <span>Last sync: {lastUpdated.toLocaleTimeString()}</span>
+            <span>آخرین همگام‌سازی: {lastUpdated.toLocaleTimeString()}</span>
           </div>
         )}
       </div>
@@ -1218,9 +1315,10 @@ export default function HotelAdminDashboard() {
         <div className="flex items-center gap-3">
           <CalendarIcon className="h-5 w-5 text-primary" />
           <div>
-            <h3 className="font-medium text-sm sm:text-base">Date Filter</h3>
+            <h3 className="font-medium text-sm sm:text-base">فیلتر تاریخ</h3>
             <p className="text-xs sm:text-sm text-muted-foreground">
-              Filter results by date range (default shows current month)
+              نتایج را بر اساس محدوده تاریخ فیلتر کنید (پیش‌فرض ماه جاری را نشان
+              می‌دهد)
             </p>
           </div>
         </div>
@@ -1232,7 +1330,7 @@ export default function HotelAdminDashboard() {
             className="hidden sm:flex items-center gap-2"
           >
             <Download className="h-3 w-3" />
-            Export Data
+            خروجی داده
           </Button>
           <DateRangePicker
             dateRange={dateRange}
@@ -1246,7 +1344,7 @@ export default function HotelAdminDashboard() {
         <Card className="bg-card border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">
-              Total Revenue
+              کل درآمد
             </CardTitle>
             <DollarSign className="h-4 w-4 text-primary" />
           </CardHeader>
@@ -1255,7 +1353,7 @@ export default function HotelAdminDashboard() {
               ${hotelStats?.totalRevenue?.toLocaleString() || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              +${hotelStats?.monthlyRevenue?.toLocaleString() || 0} this month
+              +${hotelStats?.monthlyRevenue?.toLocaleString() || 0} این ماه
             </p>
           </CardContent>
         </Card>
@@ -1263,7 +1361,7 @@ export default function HotelAdminDashboard() {
         <Card className="bg-card border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">
-              Occupancy Rate
+              نرخ اشغال
             </CardTitle>
             <Bed className="h-4 w-4 text-blue-600" />
           </CardHeader>
@@ -1272,8 +1370,8 @@ export default function HotelAdminDashboard() {
               {occupancyRate}%
             </div>
             <p className="text-xs text-muted-foreground">
-              {hotelStats?.occupiedRooms || 0} of {hotelStats?.totalRooms || 0}{" "}
-              rooms
+              {hotelStats?.occupiedRooms || 0} از {hotelStats?.totalRooms || 0}{" "}
+              اتاق
             </p>
           </CardContent>
         </Card>
@@ -1281,16 +1379,16 @@ export default function HotelAdminDashboard() {
         <Card className="bg-card border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">
-              Total Bookings
+              کل رزروها
             </CardTitle>
-            <Calendar className="h-4 w-4 text-green-600" />
+            <CalendarIcon className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-2xl font-bold text-green-600">
               {hotelStats?.totalBookings?.toLocaleString() || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              {hotelStats?.pendingBookings || 0} pending
+              {hotelStats?.pendingBookings || 0} در انتظار
             </p>
           </CardContent>
         </Card>
@@ -1298,7 +1396,7 @@ export default function HotelAdminDashboard() {
         <Card className="bg-card border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">
-              Check-ins Today
+              ورودهای امروز
             </CardTitle>
             <UserCheck className="h-4 w-4 text-purple-600" />
           </CardHeader>
@@ -1307,7 +1405,7 @@ export default function HotelAdminDashboard() {
               {hotelStats?.checkInsToday?.toLocaleString() || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              {hotelStats?.checkOutsToday || 0} check-outs
+              {hotelStats?.checkOutsToday || 0} خروج
             </p>
           </CardContent>
         </Card>
@@ -1315,7 +1413,7 @@ export default function HotelAdminDashboard() {
         <Card className="bg-card border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">
-              Available Rooms
+              اتاق‌های موجود
             </CardTitle>
             <Home className="h-4 w-4 text-amber-600" />
           </CardHeader>
@@ -1323,7 +1421,7 @@ export default function HotelAdminDashboard() {
             <div className="text-lg sm:text-2xl font-bold text-amber-600">
               {hotelStats?.availableRooms?.toLocaleString() || 0}
             </div>
-            <p className="text-xs text-muted-foreground">Ready for booking</p>
+            <p className="text-xs text-muted-foreground">آماده برای رزرو</p>
           </CardContent>
         </Card>
       </div>
@@ -1336,28 +1434,28 @@ export default function HotelAdminDashboard() {
             className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
           >
             <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
-            Overview
+            نمای کلی
           </TabsTrigger>
           <TabsTrigger
             value="rooms"
             className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
           >
             <BedDouble className="h-3 w-3 sm:h-4 sm:w-4" />
-            Rooms
+            اتاق‌ها
           </TabsTrigger>
           <TabsTrigger
             value="guests"
             className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
           >
             <Users className="h-3 w-3 sm:h-4 sm:w-4" />
-            Guests
+            مهمانان
           </TabsTrigger>
           <TabsTrigger
             value="revenue"
             className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
           >
             <DollarSign className="h-3 w-3 sm:h-4 sm:w-4" />
-            Revenue
+            درآمد
           </TabsTrigger>
         </TabsList>
 
@@ -1368,7 +1466,7 @@ export default function HotelAdminDashboard() {
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                   <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />
-                  Booking Trends
+                  روند رزروها
                   {dateRange.from && dateRange.to && (
                     <span className="text-xs text-muted-foreground">
                       ({format(dateRange.from, "MMM dd")} -{" "}
@@ -1377,19 +1475,19 @@ export default function HotelAdminDashboard() {
                   )}
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  Daily bookings and revenue trends
+                  روند روزانه رزروها و درآمد
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0">
                 {trendLoading ? (
                   <div className="flex flex-col items-center justify-center h-48 sm:h-64">
                     <Loader
-                      title="Loading booking trends..."
-                      subtitle="Please wait"
+                      title="در حال بارگیری روند رزروها..."
+                      subtitle="لطفاً منتظر بمانید"
                       size="sm"
                     />
                     <p className="text-xs text-muted-foreground mt-2">
-                      Fetching latest booking data
+                      در حال دریافت آخرین داده‌های رزرو
                     </p>
                   </div>
                 ) : bookingTrends && bookingTrends.length > 0 ? (
@@ -1398,20 +1496,20 @@ export default function HotelAdminDashboard() {
                     <div className="flex justify-center gap-4 mt-4 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <div className="w-3 h-3 bg-blue-500 rounded"></div>
-                        Bookings
+                        رزروها
                       </div>
                       <div className="flex items-center gap-1">
                         <div className="w-3 h-3 bg-green-500 rounded"></div>
-                        Revenue
+                        درآمد
                       </div>
                     </div>
                   </>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-48 sm:h-64 text-muted-foreground">
                     <BarChart3 className="h-12 w-12 mb-2 opacity-50" />
-                    <p>No booking data available</p>
+                    <p>داده‌ای برای رزروها موجود نیست</p>
                     <p className="text-xs mt-1">
-                      Booking trends will appear here
+                      روند رزروها در اینجا نمایش داده می‌شود
                     </p>
                     <Button
                       variant="outline"
@@ -1419,7 +1517,7 @@ export default function HotelAdminDashboard() {
                       onClick={() => refetchTrends()}
                       className="mt-2"
                     >
-                      Try Again
+                      دوباره امتحان کنید
                     </Button>
                   </div>
                 )}
@@ -1431,18 +1529,18 @@ export default function HotelAdminDashboard() {
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                   <Bed className="h-4 w-4 sm:h-5 sm:w-5" />
-                  Room Status
+                  وضعیت اتاق
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  Current room occupancy status
+                  وضعیت اشغال فعلی اتاق
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0">
                 {roomStatusLoading ? (
                   <div className="flex items-center justify-center h-48">
                     <Loader
-                      title="Loading room status..."
-                      subtitle="Please wait"
+                      title="در حال بارگیری وضعیت اتاق..."
+                      subtitle="لطفاً منتظر بمانید"
                       size="sm"
                     />
                   </div>
@@ -1450,7 +1548,7 @@ export default function HotelAdminDashboard() {
                   <RoomStatusChart data={roomStatus} />
                 ) : (
                   <div className="flex items-center justify-center h-48 text-muted-foreground">
-                    No room data available
+                    داده‌ای برای اتاق‌ها موجود نیست
                   </div>
                 )}
               </CardContent>
@@ -1479,7 +1577,7 @@ export default function HotelAdminDashboard() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs sm:text-sm font-medium">
-                  Avg Daily Rate
+                  میانگین نرخ روزانه
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1488,7 +1586,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex items-center text-xs text-muted-foreground mt-1">
                   <DollarSign className="h-3 w-3 mr-1" />
-                  Per occupied room
+                  به ازای هر اتاق اشغال شده
                 </div>
               </CardContent>
             </Card>
@@ -1496,7 +1594,7 @@ export default function HotelAdminDashboard() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs sm:text-sm font-medium">
-                  Total Guests
+                  کل مهمانان
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1505,7 +1603,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex items-center text-xs text-muted-foreground mt-1">
                   <Users className="h-3 w-3 mr-1" />
-                  Registered guests
+                  مهمانان ثبت‌نام شده
                 </div>
               </CardContent>
             </Card>
@@ -1522,7 +1620,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex items-center text-xs text-muted-foreground mt-1">
                   <Calculator className="h-3 w-3 mr-1" />
-                  Revenue per available room
+                  درآمد به ازای هر اتاق موجود
                 </div>
               </CardContent>
             </Card>
@@ -1530,7 +1628,7 @@ export default function HotelAdminDashboard() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs sm:text-sm font-medium">
-                  Average Stay
+                  میانگین اقامت
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1539,7 +1637,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex items-center text-xs text-muted-foreground mt-1">
                   <Clock className="h-3 w-3 mr-1" />
-                  Days per guest
+                  روز به ازای هر مهمان
                 </div>
               </CardContent>
             </Card>
@@ -1552,16 +1650,16 @@ export default function HotelAdminDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                   <BedDouble className="h-4 w-4 sm:h-5 sm:w-5" />
-                  Room Management
+                  مدیریت اتاق
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  Comprehensive room status and management
+                  وضعیت و مدیریت جامع اتاق
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Total Rooms
+                    کل اتاق‌ها
                   </span>
                   <span className="font-medium text-sm sm:text-base">
                     {hotelStats?.totalRooms || 0}
@@ -1569,7 +1667,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Occupied Rooms
+                    اتاق‌های اشغال شده
                   </span>
                   <span className="font-medium text-sm sm:text-base text-blue-600">
                     {hotelStats?.occupiedRooms || 0}
@@ -1577,7 +1675,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Available Rooms
+                    اتاق‌های موجود
                   </span>
                   <span className="font-medium text-sm sm:text-base text-green-600">
                     {hotelStats?.availableRooms || 0}
@@ -1585,7 +1683,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Occupancy Rate
+                    نرخ اشغال
                   </span>
                   <span className="font-medium text-sm sm:text-base">
                     {occupancyRate}%
@@ -1598,10 +1696,10 @@ export default function HotelAdminDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                   <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5" />
-                  Room Status Breakdown
+                  تجزیه وضعیت اتاق
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  Detailed room status distribution
+                  توزیع جزئیات وضعیت اتاق
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1609,7 +1707,7 @@ export default function HotelAdminDashboard() {
                   <>
                     <div className="flex justify-between items-center">
                       <span className="text-xs sm:text-sm text-muted-foreground">
-                        Available
+                        موجود
                       </span>
                       <span className="font-medium text-sm sm:text-base text-green-600">
                         {roomStatus.available}
@@ -1617,7 +1715,7 @@ export default function HotelAdminDashboard() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs sm:text-sm text-muted-foreground">
-                        Occupied
+                        اشغال شده
                       </span>
                       <span className="font-medium text-sm sm:text-base text-blue-600">
                         {roomStatus.occupied}
@@ -1625,7 +1723,7 @@ export default function HotelAdminDashboard() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs sm:text-sm text-muted-foreground">
-                        Under Maintenance
+                        در حال تعمیر
                       </span>
                       <span className="font-medium text-sm sm:text-base text-red-600">
                         {roomStatus.maintenance}
@@ -1633,7 +1731,7 @@ export default function HotelAdminDashboard() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs sm:text-sm text-muted-foreground">
-                        Being Cleaned
+                        در حال نظافت
                       </span>
                       <span className="font-medium text-sm sm:text-base text-amber-600">
                         {roomStatus.cleaning}
@@ -1641,7 +1739,7 @@ export default function HotelAdminDashboard() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs sm:text-sm text-muted-foreground">
-                        Reserved
+                        رزرو شده
                       </span>
                       <span className="font-medium text-sm sm:text-base text-purple-600">
                         {roomStatus.reserved}
@@ -1657,10 +1755,10 @@ export default function HotelAdminDashboard() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm sm:text-base">
-                Room Management Actions
+                اقدامات مدیریت اتاق
               </CardTitle>
               <CardDescription className="text-xs sm:text-sm">
-                Quick access to room management features
+                دسترسی سریع به ویژگی‌های مدیریت اتاق
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1672,9 +1770,9 @@ export default function HotelAdminDashboard() {
                 >
                   <Link href="/admin/rooms">
                     <BedDouble className="h-6 w-6 text-primary" />
-                    <span className="text-sm">Manage Rooms</span>
+                    <span className="text-sm">مدیریت اتاق‌ها</span>
                     <span className="text-xs text-muted-foreground">
-                      View and edit rooms
+                      مشاهده و ویرایش اتاق‌ها
                     </span>
                   </Link>
                 </Button>
@@ -1684,10 +1782,10 @@ export default function HotelAdminDashboard() {
                   asChild
                 >
                   <Link href="/admin/bookings">
-                    <Calendar className="h-6 w-6 text-green-600" />
-                    <span className="text-sm">View Bookings</span>
+                    <CalendarIcon className="h-6 w-6 text-green-600" />
+                    <span className="text-sm">مشاهده رزروها</span>
                     <span className="text-xs text-muted-foreground">
-                      All reservations
+                      تمام رزروها
                     </span>
                   </Link>
                 </Button>
@@ -1698,9 +1796,9 @@ export default function HotelAdminDashboard() {
                 >
                   <Link href="/admin/bookings">
                     <Plus className="h-6 w-6 text-blue-600" />
-                    <span className="text-sm">New Booking</span>
+                    <span className="text-sm">رزرو جدید</span>
                     <span className="text-xs text-muted-foreground">
-                      Create reservation
+                      ایجاد رزرو
                     </span>
                   </Link>
                 </Button>
@@ -1715,16 +1813,16 @@ export default function HotelAdminDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                   <Users className="h-4 w-4 sm:h-5 sm:w-5" />
-                  Guest Analytics
+                  تحلیلات مهمان
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  Comprehensive guest insights and statistics
+                  بینش و آمار جامع مهمان
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Total Guests
+                    کل مهمانان
                   </span>
                   <span className="font-medium text-sm sm:text-base">
                     {guestAnalytics?.totalGuests?.toLocaleString() || 0}
@@ -1732,7 +1830,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    New Guests
+                    مهمانان جدید
                   </span>
                   <span className="font-medium text-sm sm:text-base text-green-600">
                     {guestAnalytics?.newGuests?.toLocaleString() || 0}
@@ -1740,7 +1838,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Returning Guests
+                    مهمانان بازگشتی
                   </span>
                   <span className="font-medium text-sm sm:text-base text-blue-600">
                     {guestAnalytics?.returningGuests?.toLocaleString() || 0}
@@ -1748,10 +1846,10 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Average Stay
+                    میانگین اقامت
                   </span>
                   <span className="font-medium text-sm sm:text-base">
-                    {guestAnalytics?.averageStay?.toFixed(1) || 0} days
+                    {guestAnalytics?.averageStay?.toFixed(1) || 0} روز
                   </span>
                 </div>
               </CardContent>
@@ -1761,16 +1859,16 @@ export default function HotelAdminDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                   <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5" />
-                  Guest Satisfaction
+                  رضایت مهمان
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  Guest feedback and satisfaction metrics
+                  معیارهای بازخورد و رضایت مهمان
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Satisfaction Score
+                    امتیاز رضایت
                   </span>
                   <span className="font-medium text-sm sm:text-base text-green-600">
                     {guestAnalytics?.guestSatisfaction?.toFixed(1) || 0}%
@@ -1778,7 +1876,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Total Bookings
+                    کل رزروها
                   </span>
                   <span className="font-medium text-sm sm:text-base">
                     {hotelStats?.totalBookings?.toLocaleString() || 0}
@@ -1786,7 +1884,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Check-ins Today
+                    ورودهای امروز
                   </span>
                   <span className="font-medium text-sm sm:text-base">
                     {hotelStats?.checkInsToday?.toLocaleString() || 0}
@@ -1794,7 +1892,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Check-outs Today
+                    خروج‌های امروز
                   </span>
                   <span className="font-medium text-sm sm:text-base">
                     {hotelStats?.checkOutsToday?.toLocaleString() || 0}
@@ -1808,10 +1906,10 @@ export default function HotelAdminDashboard() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm sm:text-base">
-                Guest Management Actions
+                اقدامات مدیریت مهمان
               </CardTitle>
               <CardDescription className="text-xs sm:text-sm">
-                Quick access to guest management features
+                دسترسی سریع به ویژگی‌های مدیریت مهمان
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1823,9 +1921,9 @@ export default function HotelAdminDashboard() {
                 >
                   <Link href="/admin/guests">
                     <Users className="h-6 w-6 text-primary" />
-                    <span className="text-sm">Manage Guests</span>
+                    <span className="text-sm">مدیریت مهمانان</span>
                     <span className="text-xs text-muted-foreground">
-                      View guest profiles
+                      مشاهده پروفایل مهمانان
                     </span>
                   </Link>
                 </Button>
@@ -1836,9 +1934,9 @@ export default function HotelAdminDashboard() {
                 >
                   <Link href="/admin/bookings">
                     <UserCheck className="h-6 w-6 text-green-600" />
-                    <span className="text-sm">Check-ins</span>
+                    <span className="text-sm">ورودها</span>
                     <span className="text-xs text-muted-foreground">
-                      Today's arrivals
+                      ورودی‌های امروز
                     </span>
                   </Link>
                 </Button>
@@ -1849,9 +1947,9 @@ export default function HotelAdminDashboard() {
                 >
                   <Link href="/admin/bookings">
                     <UserX className="h-6 w-6 text-blue-600" />
-                    <span className="text-sm">Check-outs</span>
+                    <span className="text-sm">خروج‌ها</span>
                     <span className="text-xs text-muted-foreground">
-                      Today's departures
+                      خروجی‌های امروز
                     </span>
                   </Link>
                 </Button>
@@ -1866,16 +1964,16 @@ export default function HotelAdminDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                   <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
-                  Revenue Overview
+                  نمای درآمد
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  Key revenue metrics and performance indicators
+                  شاخص‌های کلیدی درآمد و عملکرد
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Total Revenue
+                    کل درآمد
                   </span>
                   <span className="font-medium text-sm sm:text-base text-green-600">
                     ${revenueAnalytics?.totalRevenue?.toLocaleString() || 0}
@@ -1883,7 +1981,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Room Revenue
+                    درآمد اتاق
                   </span>
                   <span className="font-medium text-sm sm:text-base">
                     ${revenueAnalytics?.roomRevenue?.toLocaleString() || 0}
@@ -1891,7 +1989,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Service Revenue
+                    درآمد خدمات
                   </span>
                   <span className="font-medium text-sm sm:text-base">
                     ${revenueAnalytics?.serviceRevenue?.toLocaleString() || 0}
@@ -1899,7 +1997,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Avg Daily Rate
+                    میانگین نرخ روزانه
                   </span>
                   <span className="font-medium text-sm sm:text-base">
                     ${revenueAnalytics?.avgDailyRate?.toLocaleString() || 0}
@@ -1912,16 +2010,16 @@ export default function HotelAdminDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                   <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5" />
-                  Monthly Comparison
+                  مقایسه ماهانه
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  Revenue changes compared to previous month
+                  تغییرات درآمد نسبت به ماه گذشته
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    This Month
+                    این ماه
                   </span>
                   <span className="font-medium text-sm sm:text-base">
                     $
@@ -1931,7 +2029,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Previous Month
+                    ماه گذشته
                   </span>
                   <span className="font-medium text-sm sm:text-base">
                     $
@@ -1941,7 +2039,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    Change
+                    تغییر
                   </span>
                   <span
                     className={`font-medium text-sm sm:text-base ${
@@ -1973,10 +2071,10 @@ export default function HotelAdminDashboard() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm sm:text-base">
-                Revenue Management Actions
+                اقدامات مدیریت درآمد
               </CardTitle>
               <CardDescription className="text-xs sm:text-sm">
-                Quick access to revenue management features
+                دسترسی سریع به ویژگی‌های مدیریت درآمد
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1988,9 +2086,9 @@ export default function HotelAdminDashboard() {
                 >
                   <Link href="/admin/payments">
                     <CreditCard className="h-6 w-6 text-primary" />
-                    <span className="text-sm">Payments</span>
+                    <span className="text-sm">پرداخت‌ها</span>
                     <span className="text-xs text-muted-foreground">
-                      View transactions
+                      مشاهده تراکنش‌ها
                     </span>
                   </Link>
                 </Button>
@@ -2001,9 +2099,9 @@ export default function HotelAdminDashboard() {
                 >
                   <Link href="/admin/bookings">
                     <Calculator className="h-6 w-6 text-green-600" />
-                    <span className="text-sm">Invoicing</span>
+                    <span className="text-sm">صورت‌حساب‌ها</span>
                     <span className="text-xs text-muted-foreground">
-                      Generate bills
+                      ایجاد صورت‌حساب
                     </span>
                   </Link>
                 </Button>
@@ -2014,9 +2112,9 @@ export default function HotelAdminDashboard() {
                 >
                   <Link href="/admin/payments">
                     <BarChart3 className="h-6 w-6 text-blue-600" />
-                    <span className="text-sm">Reports</span>
+                    <span className="text-sm">گزارش‌ها</span>
                     <span className="text-xs text-muted-foreground">
-                      Revenue analytics
+                      تحلیلات درآمد
                     </span>
                   </Link>
                 </Button>
@@ -2027,7 +2125,12 @@ export default function HotelAdminDashboard() {
 
         {/* Quick Actions and Alerts Section */}
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-          <QuickActions />
+          <QuickActions
+            onGenerateReport={generateGuestReport}
+            isGeneratingReport={isGeneratingReport}
+            reportDate={reportDate}
+            setReportDate={setReportDate}
+          />
           <AlertSystem hotelStats={hotelStats} />
         </div>
 

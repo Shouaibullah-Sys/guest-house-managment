@@ -11,8 +11,7 @@ export default function SignInPage() {
                 "bg-blue-600 hover:bg-blue-700 text-sm normal-case",
             },
           }}
-          afterSignInUrl="/expenses"
-          afterSignUpUrl="/pending-approval"
+          afterSignInUrl="/pending-approval"
         />
       </div>
     </div>

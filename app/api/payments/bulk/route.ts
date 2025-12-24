@@ -5,6 +5,7 @@ import { Payment } from "@/models/Payment";
 import { User } from "@/models/User";
 import { Room } from "@/models/Room";
 import dbConnect from "@/lib/db";
+import { startOfToday, startOfWeek, startOfMonth } from "date-fns";
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,10 +31,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find all unpaid bookings for this customer
-    const unpaidBookings = await Booking.find({
+    // Build filter to match the sales API logic
+    const filter: any = {
       outstandingAmount: { $gt: 0 },
-    })
+    };
+
+    // For bulk payments, we want to find ALL unpaid bookings for the customer
+    // regardless of date, so we don't apply date filters here
+    // The sales interface shows the filtered view, but bulk payment should
+    // work on all unpaid bookings for that customer
+
+    // Remove the date filter to get all unpaid bookings for the customer
+
+    // Find unpaid bookings with proper filtering
+    const unpaidBookings = await Booking.find(filter)
       .populate({
         path: "guest",
         model: "User",
@@ -47,15 +58,38 @@ export async function POST(request: NextRequest) {
       .sort({ checkInDate: 1 }) // Oldest first
       .lean();
 
-    // Filter bookings by customer name after population
+    console.log(`Found ${unpaidBookings.length} unpaid bookings in date range`);
+
+    // Filter bookings by exact customer name match
     const customerUnpaidBookings = unpaidBookings.filter((booking: any) => {
       const guestName = booking.guest?.name || booking.guest || "";
-      return guestName.toLowerCase().includes(normalizedName.toLowerCase());
+      const normalizedGuestName = guestName.trim().toLowerCase();
+
+      // Use exact match for customer name
+      return normalizedGuestName === normalizedName.toLowerCase();
     });
 
+    console.log(
+      `Found ${customerUnpaidBookings.length} unpaid bookings for customer: ${customerName}`
+    );
+
     if (customerUnpaidBookings.length === 0) {
+      // Provide more helpful error message
+      const availableCustomers = [
+        ...new Set(
+          unpaidBookings
+            .map((booking: any) => booking.guest?.name || booking.guest)
+            .filter(Boolean)
+        ),
+      ];
+
       return NextResponse.json(
-        { success: false, error: "No unpaid bookings found for this customer" },
+        {
+          success: false,
+          error: `No unpaid bookings found for customer: ${customerName}`,
+          availableCustomers: availableCustomers.slice(0, 10), // Show first 10 customers
+          totalUnpaidBookings: unpaidBookings.length,
+        },
         { status: 404 }
       );
     }

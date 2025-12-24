@@ -43,10 +43,32 @@ export async function GET(request: NextRequest) {
     const guestStays = new Map<string, number[]>();
 
     allBookings.forEach((booking) => {
-      const guestId =
-        typeof booking.guest === "string"
-          ? booking.guest
-          : booking.guest.toString();
+      // Safety check for required properties
+      if (
+        !booking.guest ||
+        !booking.bookingNumber ||
+        !booking.checkInDate ||
+        !booking.checkOutDate
+      ) {
+        console.warn(`Missing required properties for booking:`, {
+          hasGuest: !!booking.guest,
+          bookingNumber: booking.bookingNumber,
+          hasCheckIn: !!booking.checkInDate,
+          hasCheckOut: !!booking.checkOutDate,
+        });
+        return;
+      }
+
+      const guestId = booking.guest?.toString() || "";
+
+      // Skip invalid guest IDs
+      if (!guestId || guestId === "undefined" || guestId === "null") {
+        console.warn(
+          `Invalid guest ID for booking ${booking.bookingNumber}:`,
+          booking.guest
+        );
+        return;
+      }
 
       // Count bookings per guest
       guestBookingCounts.set(
@@ -61,7 +83,11 @@ export async function GET(request: NextRequest) {
       // Validate dates to prevent invalid calculations
       if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
         console.warn(
-          `Invalid check-in/out dates for booking ${booking.bookingNumber}`
+          `Invalid check-in/out dates for booking ${booking.bookingNumber}:`,
+          {
+            checkInDate: booking.checkInDate,
+            checkOutDate: booking.checkOutDate,
+          }
         );
         return;
       }
@@ -70,8 +96,8 @@ export async function GET(request: NextRequest) {
         (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)
       );
 
-      // Ensure stay duration is positive
-      if (stayDuration <= 0) {
+      // Ensure stay duration is positive and reasonable (not more than 365 days)
+      if (stayDuration <= 0 || stayDuration > 365) {
         console.warn(
           `Invalid stay duration (${stayDuration}) for booking ${booking.bookingNumber}`
         );
@@ -112,16 +138,28 @@ export async function GET(request: NextRequest) {
       console.warn("No valid stay durations found in booking data");
     }
 
-    // Ensure we have valid analytics data
+    // Validate analytics data
     const analytics = {
-      totalGuests,
-      newGuests,
-      returningGuests,
-      averageStay: Number.isFinite(averageStay)
-        ? Math.round(averageStay * 10) / 10
-        : 0, // Round to 1 decimal place
-      guestSatisfaction,
+      totalGuests: Math.max(0, totalGuests || 0),
+      newGuests: Math.max(0, newGuests || 0),
+      returningGuests: Math.max(0, returningGuests || 0),
+      averageStay:
+        Number.isFinite(averageStay) && averageStay >= 0
+          ? Math.round(averageStay * 10) / 10
+          : 0, // Round to 1 decimal place
+      guestSatisfaction: Math.max(0, Math.min(5, guestSatisfaction)), // Clamp between 0-5
     };
+
+    // Log analytics summary for debugging
+    console.log("Guest Analytics Summary:", {
+      totalGuests: analytics.totalGuests,
+      newGuests: analytics.newGuests,
+      returningGuests: analytics.returningGuests,
+      averageStay: analytics.averageStay,
+      guestSatisfaction: analytics.guestSatisfaction,
+      bookingsProcessed: allBookings.length,
+      validStays: totalStayCount,
+    });
 
     return NextResponse.json(analytics);
   } catch (error) {

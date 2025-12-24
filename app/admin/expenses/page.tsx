@@ -51,13 +51,6 @@ export default function ExpensesPage() {
     _id?: string;
   } | null>(null);
 
-  // Redirect if not signed in
-  useEffect(() => {
-    if (!isSignedIn) {
-      router.push("/sign-in");
-    }
-  }, [isSignedIn, router]);
-
   // Fetch expenses
   const fetchExpenses = async () => {
     try {
@@ -263,10 +256,6 @@ export default function ExpensesPage() {
     a.click();
   };
 
-  if (!isSignedIn) {
-    return null;
-  }
-
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -277,10 +266,6 @@ export default function ExpensesPage() {
           <p className="text-gray-500">Track and manage your hotel expenses</p>
         </div>
         <div className="flex items-center space-x-4">
-          <Button variant="outline" onClick={exportToCSV} className="gap-2">
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
           <Dialog open={formOpen} onOpenChange={setFormOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
@@ -319,21 +304,6 @@ export default function ExpensesPage() {
           >
             Debug Info
           </Button>
-        </div>
-      )}
-
-      {/* Auth Debug Info (Development only) */}
-      {process.env.NODE_ENV === "development" && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">
-            Auth Debug Info
-          </h3>
-          <div className="text-xs text-gray-600 space-y-1">
-            <div>Signed In: {authDebug.isSignedIn ? "Yes" : "No"}</div>
-            <div>User ID: {authDebug.userId || "None"}</div>
-            <div>Role: {authDebug.metadata?.role || "None"}</div>
-            <div>Approved: {authDebug.metadata?.approved ? "Yes" : "No"}</div>
-          </div>
         </div>
       )}
 

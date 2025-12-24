@@ -11,7 +11,6 @@ export default function SignUpPage() {
                 "bg-blue-600 hover:bg-blue-700 text-sm normal-case",
             },
           }}
-          afterSignInUrl="/pending-approval"
           afterSignUpUrl="/pending-approval"
         />
       </div>
