@@ -41,6 +41,8 @@ function transformRoomToResponse(room: any) {
     status: room.status,
     lastCleaned: room.lastCleaned ? room.lastCleaned.toISOString() : null,
     notes: room.notes || "",
+    imageUrl: room.imageUrl || null,
+    imagePath: room.imagePath || null,
     createdAt: room.createdAt.toISOString(),
     updatedAt: room.updatedAt.toISOString(),
   };
@@ -207,6 +209,7 @@ export async function POST(request: NextRequest) {
         .enum(["available", "occupied", "maintenance", "cleaning", "reserved"])
         .default("available"),
       notes: z.string().optional(),
+      imageUrl: z.string().optional(),
       metadata: z
         .object({
           theme: z.string().optional(),
@@ -242,6 +245,7 @@ export async function POST(request: NextRequest) {
       floor: roomData.floor,
       status: roomData.status,
       notes: roomData.notes,
+      imageUrl: roomData.imageUrl,
     });
 
     await newRoom.save();
@@ -313,6 +317,7 @@ export async function PUT(request: NextRequest) {
         .enum(["available", "occupied", "maintenance", "cleaning", "reserved"])
         .optional(),
       notes: z.string().optional(),
+      imageUrl: z.string().optional(),
     });
 
     const roomData = roomSchema.parse(body);
@@ -358,6 +363,8 @@ export async function PUT(request: NextRequest) {
     if (roomData.floor) updateData.floor = roomData.floor;
     if (roomData.status) updateData.status = roomData.status;
     if (roomData.notes !== undefined) updateData.notes = roomData.notes;
+    if (roomData.imageUrl !== undefined)
+      updateData.imageUrl = roomData.imageUrl;
 
     const updatedRoom = await Room.findByIdAndUpdate(roomData.id, updateData, {
       new: true,

@@ -28,6 +28,14 @@ const roomSchema = new Schema<IRoom>(
       type: Schema.Types.ObjectId,
       ref: "Booking",
     },
+    imageUrl: {
+      type: String,
+      trim: true,
+    },
+    imagePath: {
+      type: String,
+      trim: true,
+    },
     housekeepingHistory: [
       {
         taskType: {

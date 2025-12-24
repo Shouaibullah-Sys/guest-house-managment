@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { QueryProvider } from "@/components/QueryProvider";
+import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -26,6 +27,17 @@ export default function RootLayout({
             <div className="min-h-screen flex flex-col mb-48">
               <main className="flex-grow">{children}</main>
             </div>
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: "hsl(var(--background))",
+                  color: "hsl(var(--foreground))",
+                  border: "1px solid hsl(var(--border))",
+                },
+              }}
+            />
           </body>
         </html>
       </QueryProvider>

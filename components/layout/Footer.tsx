@@ -191,7 +191,7 @@ export default function Footer() {
                     href="tel:+15551234567"
                     className="text-white hover:text-amber-400 transition-colors"
                   >
-                    +1 (555) 123-4567
+                    +93 (0790) 361-638
                   </a>
                 </div>
               </motion.div>
@@ -209,7 +209,7 @@ export default function Footer() {
                     href="mailto:reservations@luxuryhotel.com"
                     className="text-white hover:text-amber-400 transition-colors"
                   >
-                    reservations@luxuryhotel.com
+                    nawaztotakhail0@gmail.com
                   </a>
                 </div>
               </motion.div>
@@ -223,7 +223,7 @@ export default function Footer() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-400">Location</p>
-                  <p className="text-white">123 Luxury Avenue, Paradise City</p>
+                  <p className="text-white">Kabul, Shahere Naw</p>
                 </div>
               </motion.div>
             </div>

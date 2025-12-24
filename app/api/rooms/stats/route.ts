@@ -1,4 +1,3 @@
-// app/api/rooms/stats/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { Room } from "@/models/Room";
@@ -20,83 +19,58 @@ export async function GET(request: NextRequest) {
     const totalRooms = await Room.countDocuments();
 
     // Get rooms by status
-    const roomsByStatus = await Room.aggregate([
-      {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 },
-        },
-      },
-    ]);
-
-    // Initialize status counts
-    const statusCounts = {
-      available: 0,
-      occupied: 0,
-      reserved: 0,
-      maintenance: 0,
-      cleaning: 0,
-    };
-
-    // Populate status counts
-    roomsByStatus.forEach((item: any) => {
-      if (statusCounts.hasOwnProperty(item._id)) {
-        statusCounts[item._id] = item.count;
-      }
+    const availableRooms = await Room.countDocuments({ status: "available" });
+    const occupiedRooms = await Room.countDocuments({ status: "occupied" });
+    const reservedRooms = await Room.countDocuments({ status: "reserved" });
+    const maintenanceRooms = await Room.countDocuments({
+      status: "maintenance",
     });
+    const cleaningRooms = await Room.countDocuments({ status: "cleaning" });
 
     // Calculate occupancy rate
-    const occupiedRooms = statusCounts.occupied + statusCounts.reserved;
     const occupancyRate =
-      totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
+      totalRooms > 0 ? (occupiedRooms / totalRooms) * 100 : 0;
 
-    // Get revenue data
+    // Get today's revenue from completed bookings
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const todayBookings = await Booking.find({
+      status: "checked_out",
+      actualCheckOut: { $gte: today, $lt: tomorrow },
+    });
 
-    // Revenue today
-    const revenueTodayResult = await Booking.aggregate([
-      {
-        $match: {
-          status: { $in: ["checked_in", "checked_out"] },
-          checkInDate: { $gte: today, $lt: tomorrow },
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: { $toDouble: "$totalAmount" } },
-        },
-      },
-    ]);
+    const revenueToday = todayBookings.reduce((total, booking) => {
+      const paidAmount = booking.paidAmount?.toString() || "0";
+      return total + parseFloat(paidAmount);
+    }, 0);
 
-    const revenueToday = revenueTodayResult[0]?.total || 0;
+    // Get this month's revenue
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-    // Revenue this month
-    const revenueThisMonthResult = await Booking.aggregate([
-      {
-        $match: {
-          status: { $in: ["checked_in", "checked_out"] },
-          checkInDate: { $gte: startOfMonth, $lte: endOfMonth },
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: { $toDouble: "$totalAmount" } },
-        },
-      },
-    ]);
+    const monthBookings = await Booking.find({
+      status: "checked_out",
+      actualCheckOut: { $gte: monthStart, $lte: monthEnd },
+    });
 
-    const revenueThisMonth = revenueThisMonthResult[0]?.total || 0;
+    const revenueThisMonth = monthBookings.reduce((total, booking) => {
+      const paidAmount = booking.paidAmount?.toString() || "0";
+      return total + parseFloat(paidAmount);
+    }, 0);
+
+    // Get average rating from room types
+    const roomTypes = await RoomType.find({ isActive: true });
+    const averageRating =
+      roomTypes.length > 0
+        ? roomTypes.reduce((sum, rt) => sum + (rt.rating || 0), 0) /
+          roomTypes.length
+        : 0;
 
     // Get most popular room type
-    const roomTypeBookings = await Booking.aggregate([
+    const popularRoomType = await Booking.aggregate([
       {
         $lookup: {
           from: "rooms",
@@ -104,9 +78,6 @@ export async function GET(request: NextRequest) {
           foreignField: "_id",
           as: "roomData",
         },
-      },
-      {
-        $unwind: "$roomData",
       },
       {
         $lookup: {
@@ -117,51 +88,42 @@ export async function GET(request: NextRequest) {
         },
       },
       {
-        $unwind: "$roomTypeData",
-      },
-      {
         $group: {
-          _id: "$roomTypeData.name",
-          bookings: { $sum: 1 },
+          _id: "$roomData.roomType",
+          count: { $sum: 1 },
+          roomTypeName: { $first: "$roomTypeData.name" },
         },
       },
       {
-        $sort: { bookings: -1 },
+        $sort: { count: -1 },
       },
       {
         $limit: 1,
       },
     ]);
 
-    const mostPopularType = roomTypeBookings[0]?._id || "نامشخص";
+    const mostPopularType =
+      popularRoomType.length > 0
+        ? popularRoomType[0].roomTypeName?.[0] || "Standard"
+        : "Standard";
 
-    // Calculate average rating
-    const averageRatingResult = await RoomType.aggregate([
-      {
-        $group: {
-          _id: null,
-          avgRating: { $avg: "$rating" },
-        },
-      },
-    ]);
-
-    const averageRating = averageRatingResult[0]?.avgRating || 0;
-
-    // Count VIP rooms (luxury category)
-    const vipRooms = await RoomType.countDocuments({ category: "luxury" });
+    // VIP rooms count (simplified)
+    const vipRoomsCount = await Room.countDocuments({
+      status: { $in: ["available", "occupied"] },
+    });
 
     const stats = {
       total: totalRooms,
-      available: statusCounts.available,
-      occupied: statusCounts.occupied,
-      reserved: statusCounts.reserved,
-      maintenance: statusCounts.maintenance,
-      cleaning: statusCounts.cleaning,
-      vip: vipRooms,
-      occupancyRate,
-      revenueToday: Number(revenueToday),
-      revenueThisMonth: Number(revenueThisMonth),
-      averageRating: Number(averageRating.toFixed(1)),
+      available: availableRooms,
+      occupied: occupiedRooms,
+      reserved: reservedRooms,
+      maintenance: maintenanceRooms,
+      cleaning: cleaningRooms,
+      vip: vipRoomsCount,
+      occupancyRate: Math.round(occupancyRate * 10) / 10,
+      revenueToday,
+      revenueThisMonth,
+      averageRating: Math.round(averageRating * 10) / 10,
       mostPopularType,
     };
 

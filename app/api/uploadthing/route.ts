@@ -68,6 +68,36 @@ export const ourFileRouter = {
       };
     }),
 
+  // Room uploader
+  roomUploader: f({
+    image: {
+      maxFileSize: "4MB",
+      maxFileCount: 1,
+    },
+  })
+    .middleware(async ({ req }) => {
+      // Authentication check
+      const { userId } = await auth();
+      if (!userId) {
+        throw new Error("Unauthorized");
+      }
+      return { userId };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      // This code runs on your server after upload
+      console.log("Room upload complete for user:", metadata.userId);
+      console.log("File URL:", file.ufsUrl);
+
+      // Return the file data that will be sent to the client
+      return {
+        uploadedBy: metadata.userId,
+        url: file.ufsUrl,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+      };
+    }),
+
   // Document uploader
   documentUploader: f({
     "application/pdf": {

@@ -4,8 +4,6 @@
 import React, { useEffect, useState } from "react";
 import {
   Menu,
-  Phone,
-  Globe,
   User,
   Calendar,
   X,
@@ -163,11 +161,13 @@ function Header({
   }, []);
 
   const navigationItems = [
-    "Destinations",
-    "Experiences",
-    "About",
-    "Contact",
-    "Gallery",
+    { name: "Home", id: "hero" },
+    { name: "Stats", id: "stats" },
+    { name: "Hotels", id: "featured-hotels" },
+    { name: "Amenities", id: "amenities" },
+    { name: "Testimonials", id: "testimonials" },
+    { name: "Reservation", id: "reservation" },
+    { name: "Contact", id: "contact" },
   ];
 
   const handleLogin = () => {
@@ -185,6 +185,7 @@ function Header({
   return (
     <>
       <motion.header
+        data-testid="header"
         style={{
           height: smoothHeaderHeight,
           opacity: headerOpacity,
@@ -210,6 +211,7 @@ function Header({
           <div className="flex items-center justify-between h-full">
             {/* Logo */}
             <motion.div
+              data-testid="header-logo"
               style={{
                 scale: isScrolled ? 0.95 : 1,
                 opacity: isScrolled ? 0.9 : 1,
@@ -240,29 +242,45 @@ function Header({
             </motion.div>
 
             {/* Navigation */}
-            <nav className="hidden lg:flex items-center gap-6">
-              {navigationItems.map((item, index) => (
-                <motion.a
-                  key={item}
-                  href="#"
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  whileHover={{
-                    scale: 1.05,
-                    color: "#fbbf24",
-                    y: -2,
-                  }}
-                  whileTap={{ scale: 0.95 }}
-                  className="text-gray-300 hover:text-amber-400 font-medium text-sm tracking-wide relative group will-change-transform"
-                >
-                  {item}
-                  <motion.span
-                    className="absolute -bottom-1 left-0 w-0 h-0.5 bg-linear-to-r from-amber-400 to-amber-600 group-hover:w-full"
-                    transition={{ duration: 0.3 }}
-                  />
-                </motion.a>
-              ))}
+            <nav
+              data-testid="header-navigation"
+              className="hidden lg:flex items-center gap-6"
+            >
+              {navigationItems.map((item, index) => {
+                const scrollToSection = () => {
+                  const section = document.getElementById(item.id);
+                  if (section) {
+                    const headerHeight = 80;
+                    const offset = section.offsetTop - headerHeight;
+                    window.scrollTo({ top: offset, behavior: "smooth" });
+                  }
+                };
+
+                return (
+                  <motion.button
+                    key={item.id}
+                    data-testid={`nav-item-${item.id}`}
+                    id={`nav-${item.id}`}
+                    onClick={scrollToSection}
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{
+                      scale: 1.05,
+                      color: "#fbbf24",
+                      y: -2,
+                    }}
+                    whileTap={{ scale: 0.95 }}
+                    className="text-gray-300 hover:text-amber-400 font-medium text-sm tracking-wide relative group will-change-transform"
+                  >
+                    {item.name}
+                    <motion.span
+                      className="absolute -bottom-1 left-0 w-0 h-0.5 bg-linear-to-r from-amber-400 to-amber-600 group-hover:w-full"
+                      transition={{ duration: 0.3 }}
+                    />
+                  </motion.button>
+                );
+              })}
             </nav>
 
             {/* Right side buttons */}
@@ -270,6 +288,7 @@ function Header({
               {/* Booking Cart Button */}
               {bookingItems.length > 0 && (
                 <motion.button
+                  data-testid="booking-cart-button"
                   whileHover={{ scale: 1.05, y: -1 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setIsBookingCartOpen(true)}
@@ -285,6 +304,7 @@ function Header({
 
               {/* Quick Book Button */}
               <motion.button
+                data-testid="quick-book-button"
                 whileHover={{ scale: 1.05, y: -1 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={scrollToBooking}
@@ -331,6 +351,7 @@ function Header({
                 </div>
               ) : (
                 <motion.button
+                  data-testid="login-button"
                   whileHover={{ scale: 1.05, y: -1 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setIsUserProfileOpen(true)}
@@ -346,6 +367,7 @@ function Header({
               )}
 
               <motion.button
+                data-testid="mobile-menu-button"
                 whileHover={{ scale: 1.1, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
                 className="lg:hidden text-gray-300 hover:text-amber-400 transition-colors will-change-transform"
@@ -368,7 +390,11 @@ function Header({
       </motion.header>
 
       {/* User Profile Dialog */}
-      <Dialog open={isUserProfileOpen} onOpenChange={setIsUserProfileOpen}>
+      <Dialog
+        data-testid="user-profile-dialog"
+        open={isUserProfileOpen}
+        onOpenChange={setIsUserProfileOpen}
+      >
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden bg-gradient-to-br from-gray-900 to-gray-950 border border-gray-800/50 p-0">
           {showLoginOptions ? (
             // Login/Signup View
@@ -427,6 +453,7 @@ function Header({
                         />
                       </div>
                       <button
+                        data-testid="dialog-sign-in-button"
                         onClick={handleLogin}
                         className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all"
                       >
@@ -484,6 +511,7 @@ function Header({
                         </div>
                       </div>
                       <button
+                        data-testid="dialog-create-account-button"
                         onClick={handleSignUp}
                         className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all"
                       >
@@ -495,6 +523,7 @@ function Header({
 
                 <div className="text-center">
                   <button
+                    data-testid="back-to-profile-button"
                     onClick={() => setShowLoginOptions(false)}
                     className="text-sm text-gray-400 hover:text-white transition-colors"
                   >
@@ -590,12 +619,14 @@ function Header({
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <button
+                    data-testid="guest-sign-in-button"
                     onClick={() => setShowLoginOptions(true)}
                     className="px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all"
                   >
                     Sign In to Your Account
                   </button>
                   <button
+                    data-testid="guest-create-account-button"
                     onClick={() => setShowLoginOptions(true)}
                     className="px-6 py-3 border border-amber-500/30 text-amber-400 rounded-lg hover:bg-amber-500/10 transition-colors"
                   >
@@ -744,7 +775,9 @@ function Header({
                               <div className="p-3 rounded-lg bg-gray-800/30 border border-gray-700/50">
                                 <p className="text-white">
                                   {user?.firstName
-                                    ? `${user.firstName} ${user?.lastName || ""}`.trim()
+                                    ? `${user.firstName} ${
+                                        user?.lastName || ""
+                                      }`.trim()
                                     : user?.username || "User"}
                                 </p>
                               </div>
@@ -978,11 +1011,13 @@ function Header({
       {isBookingCartOpen && (
         <>
           <div
+            data-testid="booking-cart-overlay"
             className="fixed inset-0 bg-black/70 z-50 backdrop-blur-sm"
             onClick={() => setIsBookingCartOpen(false)}
           />
 
           <motion.div
+            data-testid="booking-cart-modal"
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
@@ -997,6 +1032,7 @@ function Header({
                 </p>
               </div>
               <button
+                data-testid="booking-cart-close-button"
                 onClick={() => setIsBookingCartOpen(false)}
                 className="text-gray-400 hover:text-amber-400 transition-colors"
               >
@@ -1056,6 +1092,7 @@ function Header({
                       <div className="flex flex-col items-end gap-2">
                         <div className="flex items-center gap-2">
                           <button
+                            data-testid={`decrease-nights-${item.id}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (onUpdateNights)
@@ -1070,6 +1107,7 @@ function Header({
                             {item.nights} night{item.nights > 1 ? "s" : ""}
                           </span>
                           <button
+                            data-testid={`increase-nights-${item.id}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (onUpdateNights)
@@ -1081,6 +1119,7 @@ function Header({
                           </button>
                         </div>
                         <button
+                          data-testid={`remove-booking-${item.id}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             if (onRemoveBooking) onRemoveBooking(item.id);
@@ -1117,6 +1156,7 @@ function Header({
                       Complete Booking
                     </button>
                     <button
+                      data-testid="continue-browsing-button"
                       onClick={() => setIsBookingCartOpen(false)}
                       className="px-6 py-3 border border-gray-600 text-gray-300 hover:text-white hover:border-gray-500 rounded-xl transition-colors"
                     >

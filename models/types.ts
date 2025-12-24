@@ -143,6 +143,8 @@ export interface IRoom extends Document {
   lastCleaned?: Date;
   notes?: string;
   currentBooking?: Types.ObjectId;
+  imageUrl?: string;
+  imagePath?: string;
   housekeepingHistory: Array<{
     taskType: "cleaning" | "inspection" | "turnover";
     status: string;

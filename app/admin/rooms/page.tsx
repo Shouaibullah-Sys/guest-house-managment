@@ -149,6 +149,7 @@ import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@clerk/nextjs";
+import { uploadFiles } from "@/lib/uploadthing-client";
 
 // Hotel Theme Configuration
 const HOTEL_THEME = {
@@ -212,6 +213,8 @@ interface Room {
   status: RoomStatus;
   lastCleaned: Date | null;
   notes: string | null;
+  imageUrl?: string | null;
+  imagePath?: string | null;
   createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -272,6 +275,7 @@ const roomFormSchema = z.object({
     .max(500, "یادداشت نباید بیش از ۵۰۰ کاراکتر باشد")
     .optional()
     .default(""),
+  imageUrl: z.string().optional().default(""),
 });
 
 type RoomFormData = z.infer<typeof roomFormSchema>;
@@ -282,6 +286,7 @@ interface FormErrors {
   floor?: string;
   status?: string;
   notes?: string;
+  imageUrl?: string;
 }
 
 // Fetch functions
@@ -472,6 +477,7 @@ export default function AdminRoomsPage() {
   );
   const [isDetailsSheetOpen, setIsDetailsSheetOpen] = useState(false);
   const [editFormErrors, setEditFormErrors] = useState<FormErrors>({});
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // New room state
   const [newRoom, setNewRoom] = useState<RoomFormData>({
@@ -480,6 +486,7 @@ export default function AdminRoomsPage() {
     floor: 1,
     status: "available",
     notes: "",
+    imageUrl: "",
   });
   const [formErrors, setFormErrors] = useState<FormErrors>({});
 
@@ -552,6 +559,29 @@ export default function AdminRoomsPage() {
     }
   };
 
+  // Image upload function using UploadThing
+  const handleImageUpload = async (file: File): Promise<string> => {
+    setUploadingImage(true);
+    try {
+      // Use UploadThing's proper client API
+      const result = await uploadFiles.uploadFiles("roomUploader", {
+        files: [file],
+      });
+
+      if (result.length === 0) {
+        throw new Error("No files were uploaded");
+      }
+
+      return result[0].url;
+    } catch (error) {
+      console.error("Image upload error:", error);
+      toast.error("Failed to upload image");
+      throw error;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleAddRoomSubmit = () => {
     const errors = validateForm(newRoom);
     setFormErrors(errors);
@@ -574,6 +604,7 @@ export default function AdminRoomsPage() {
       floor: selectedRoom.floor,
       status: selectedRoom.status,
       notes: selectedRoom.notes || "",
+      imageUrl: selectedRoom.imageUrl || "",
     };
 
     const errors = validateForm(editRoomData);
@@ -587,6 +618,7 @@ export default function AdminRoomsPage() {
         floor: selectedRoom.floor,
         status: selectedRoom.status,
         notes: selectedRoom.notes || "",
+        imageUrl: selectedRoom.imageUrl,
       });
     } else {
       toast.error("لطفاً خطاهای فرم را برطرف کنید", {
@@ -627,6 +659,7 @@ export default function AdminRoomsPage() {
         floor: 1,
         status: "available",
         notes: "",
+        imageUrl: "",
       });
       setFormErrors({});
       toast.success("اتاق جدید ایجاد شد 🎉", {
@@ -1429,6 +1462,8 @@ export default function AdminRoomsPage() {
         isLoading={addRoomMutation.isPending}
         formErrors={formErrors}
         onSubmit={handleAddRoomSubmit}
+        onImageUpload={handleImageUpload}
+        uploadingImage={uploadingImage}
       />
 
       {/* Edit Room Dialog */}
@@ -1446,6 +1481,8 @@ export default function AdminRoomsPage() {
         isLoading={updateRoomMutation.isPending}
         formErrors={editFormErrors}
         onSubmit={handleEditRoomSubmit}
+        onImageUpload={handleImageUpload}
+        uploadingImage={uploadingImage}
       />
 
       {/* Delete Room Dialog */}
@@ -1509,6 +1546,19 @@ function RoomCard({
       )}
     >
       <CardHeader className="pb-3 relative">
+        {/* Room Image */}
+        {room.imageUrl && (
+          <div className="w-full h-32 rounded-lg overflow-hidden mb-3">
+            <img
+              src={room.imageUrl}
+              alt={`اتاق ${room.roomNumber}`}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.src = "/placeholder-room.png";
+              }}
+            />
+          </div>
+        )}
         <div className="absolute inset-0 bg-linear-to-r from-blue-500/10 to-emerald-500/10" />
         <div className="flex justify-between items-start relative z-10">
           <div>
@@ -1715,6 +1765,7 @@ function RoomsTable({
         <Table>
           <TableHeader className="bg-linear-to-r from-blue-50 to-emerald-50 dark:from-gray-800 dark:to-gray-900">
             <TableRow>
+              <TableHead className="font-bold">تصویر</TableHead>
               <TableHead className="font-bold">شماره اتاق</TableHead>
               <TableHead className="font-bold">طبقه</TableHead>
               <TableHead className="font-bold">نوع اتاق</TableHead>
@@ -1732,6 +1783,24 @@ function RoomsTable({
                 key={room.id}
                 className="hover:bg-blue-50/50 dark:hover:bg-gray-800/50"
               >
+                <TableCell>
+                  {room.imageUrl ? (
+                    <div className="w-12 h-8 rounded overflow-hidden bg-gray-100">
+                      <img
+                        src={room.imageUrl}
+                        alt={`اتاق ${room.roomNumber}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = "/placeholder-room.png";
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-12 h-8 rounded bg-gray-100 flex items-center justify-center">
+                      <Building className="h-4 w-4 text-gray-400" />
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-2">
                     <div
@@ -1838,6 +1907,8 @@ function AddRoomDialog({
   isLoading,
   formErrors,
   onSubmit,
+  onImageUpload,
+  uploadingImage,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -1847,6 +1918,8 @@ function AddRoomDialog({
   isLoading: boolean;
   formErrors: FormErrors;
   onSubmit: () => void;
+  onImageUpload: (file: File) => Promise<string>;
+  uploadingImage: boolean;
 }) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -2028,6 +2101,56 @@ function AddRoomDialog({
               {newRoom.notes.length}/500 کاراکتر
             </p>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="image">تصویر اتاق</Label>
+            <div className="flex items-center gap-4">
+              <div className="w-24 h-16 rounded-lg overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300">
+                {newRoom.imageUrl ? (
+                  <img
+                    src={newRoom.imageUrl}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Building className="h-6 w-6 text-gray-400" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <input
+                  type="file"
+                  id="image"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      try {
+                        const imageUrl = await onImageUpload(file);
+                        setNewRoom({ ...newRoom, imageUrl });
+                      } catch (error) {
+                        // Error is handled in the parent component
+                      }
+                    }
+                  }}
+                  disabled={uploadingImage}
+                  className="hidden"
+                />
+                <Label
+                  htmlFor="image"
+                  className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+                >
+                  {uploadingImage ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  {uploadingImage ? "در حال آپلود..." : "آپلود تصویر"}
+                </Label>
+              </div>
+            </div>
+          </div>
         </div>
 
         <DialogFooter className="gap-2">
@@ -2072,6 +2195,8 @@ function EditRoomDialog({
   isLoading,
   formErrors,
   onSubmit,
+  onImageUpload,
+  uploadingImage,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -2081,6 +2206,8 @@ function EditRoomDialog({
   isLoading: boolean;
   formErrors: FormErrors;
   onSubmit: () => void;
+  onImageUpload: (file: File) => Promise<string>;
+  uploadingImage: boolean;
 }) {
   if (!room) return null;
 
@@ -2274,6 +2401,56 @@ function EditRoomDialog({
             <p className="text-xs text-muted-foreground">
               {(room.notes || "").length}/500 کاراکتر
             </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-image">تصویر اتاق</Label>
+            <div className="flex items-center gap-4">
+              <div className="w-24 h-16 rounded-lg overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300">
+                {room.imageUrl ? (
+                  <img
+                    src={room.imageUrl}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Building className="h-6 w-6 text-gray-400" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <input
+                  type="file"
+                  id="edit-image"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      try {
+                        const imageUrl = await onImageUpload(file);
+                        setRoom({ ...room, imageUrl });
+                      } catch (error) {
+                        // Error is handled in the parent component
+                      }
+                    }
+                  }}
+                  disabled={uploadingImage}
+                  className="hidden"
+                />
+                <Label
+                  htmlFor="edit-image"
+                  className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+                >
+                  {uploadingImage ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  {uploadingImage ? "در حال آپلود..." : "تغییر تصویر"}
+                </Label>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4"></div>
@@ -2473,6 +2650,26 @@ function RoomDetailsSheet({
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
+          {/* Room Image */}
+          {room.imageUrl && (
+            <div className="space-y-4">
+              <h4 className="font-bold text-lg flex items-center gap-2">
+                <Building className="h-5 w-5" />
+                تصویر اتاق
+              </h4>
+              <div className="w-full h-64 rounded-lg overflow-hidden bg-gray-100">
+                <img
+                  src={room.imageUrl}
+                  alt={`اتاق ${room.roomNumber}`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = "/placeholder-room.png";
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Header Card */}
           <Card className="bg-linear-to-r from-blue-500/5 to-emerald-500/5 border-2">
             <CardContent className="p-6">
