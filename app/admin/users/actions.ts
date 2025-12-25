@@ -8,8 +8,13 @@ import { revalidatePath } from "next/cache";
 export async function setRole(formData: FormData): Promise<void> {
   const client = await clerkClient();
   const userId = formData.get("id") as string;
-  const role = formData.get("role") as "guest" | "staff" | "admin";
-  const approved = role === "guest" ? true : false; // Guests auto-approved
+  const role = formData.get("role") as
+    | "guest"
+    | "staff"
+    | "admin"
+    | "laboratory"
+    | "patient";
+  const approved = role === "guest" || role === "patient" ? true : false; // Guests and patients auto-approved
 
   try {
     // Update Clerk metadata
@@ -145,6 +150,39 @@ export async function deleteUser(formData: FormData): Promise<void> {
     );
 
     console.log({ message: `User ${userId} deleted successfully` });
+    revalidatePath("/admin/users");
+  } catch (err) {
+    throw new Error(err instanceof Error ? err.message : String(err));
+  }
+}
+
+export async function removeRole(formData: FormData): Promise<void> {
+  const client = await clerkClient();
+  const userId = formData.get("id") as string;
+
+  try {
+    // Get current user from Clerk to preserve existing metadata
+    const clerkUser = await client.users.getUser(userId);
+    const currentMetadata = clerkUser.publicMetadata as any;
+
+    // Remove role from Clerk metadata
+    const { role, ...otherMetadata } = currentMetadata;
+    const res = await client.users.updateUser(userId, {
+      publicMetadata: otherMetadata,
+    });
+
+    // Update MongoDB user to remove role
+    await User.findOneAndUpdate(
+      { _id: userId },
+      {
+        $unset: {
+          role: "",
+          approved: "",
+        },
+      }
+    );
+
+    console.log({ message: res.publicMetadata });
     revalidatePath("/admin/users");
   } catch (err) {
     throw new Error(err instanceof Error ? err.message : String(err));

@@ -36,7 +36,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { setLaboratoryRole, removeRole } from "@/app/admin/users/actions";
+import { setRole, removeRole } from "@/app/admin/users/actions";
 
 interface User {
   id: string;
@@ -72,7 +72,7 @@ export function UsersTable({ users, onRefresh }: UsersTableProps) {
       formData.append("id", userId);
       formData.append("role", newRole);
 
-      await setLaboratoryRole(formData);
+      await setRole(formData);
       onRefresh();
     } catch (error) {
       console.error("Error updating role:", error);
