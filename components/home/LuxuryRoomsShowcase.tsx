@@ -5,7 +5,7 @@ import React, { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
+import { useAuth } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import {
   Star,
@@ -29,6 +29,7 @@ export default function LuxuryRoomsShowcase() {
   const sectionsRef = useRef<(HTMLElement | null)[]>([]);
   const overlayRefs = useRef<(HTMLDivElement | null)[]>([]);
   const router = useRouter();
+  const { isSignedIn, userId } = useAuth();
 
   const luxuryRooms = [
     {
@@ -255,8 +256,7 @@ export default function LuxuryRoomsShowcase() {
   // Book Now
   // ------------------------------------------------------------
   const handleBookNow = async (id: number) => {
-    const session = await authClient.getSession();
-    router.push(session?.data?.user ? `/booking?room=${id}` : "/login");
+    router.push(isSignedIn && userId ? `/booking?room=${id}` : "/sign-up");
   };
 
   return (
