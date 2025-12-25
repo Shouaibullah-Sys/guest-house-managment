@@ -278,8 +278,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Create PDF document
-    const doc = new jsPDF();
+    // Create PDF document in landscape orientation
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4",
+    });
 
     // Set up font support
     addPersianFontSupport(doc);
@@ -287,70 +291,21 @@ export async function GET(request: NextRequest) {
     // Add header
     doc.setFontSize(20);
     const headerText = convertToEnglish("گزارش روزانه میهمانان");
-    doc.text(headerText, 105, 20, { align: "center" });
+    doc.text(headerText, 148.5, 20, { align: "center" });
 
     doc.setFontSize(12);
     const dateText =
       convertToEnglish("تاریخ") +
       `: ${new Date(reportDate).toLocaleDateString("en-US")}`;
-    doc.text(dateText, 105, 30, { align: "center" });
+    doc.text(dateText, 148.5, 30, { align: "center" });
 
     const timeText =
       convertToEnglish("ساعت تولید") +
       `: ${new Date().toLocaleTimeString("en-US")}`;
-    doc.text(timeText, 105, 37, { align: "center" });
-
-    // Add summary statistics
-    doc.setFontSize(14);
-    const summaryTitle = convertToEnglish("خلاصه آماری");
-    doc.text(summaryTitle, 20, 50);
-
-    doc.setFontSize(10);
-    const summaryData = [
-      [convertToEnglish("تعداد کل میهمانان"), totalGuests.toString()],
-      [convertToEnglish("میهمانان فعال"), activeGuests.toString()],
-      [
-        convertToEnglish("مجموع هزینه‌ها"),
-        `${totalSpent.toLocaleString("en-US")} ${convertToEnglish("افغانی")}`,
-      ],
-      [convertToEnglish("مجموع اقامت‌ها"), totalStays.toString()],
-      [
-        convertToEnglish("میانگین هزینه هر میهمان"),
-        `${Math.round(averageSpent).toLocaleString("en-US")} ${convertToEnglish(
-          "افغانی"
-        )}`,
-      ],
-    ];
-
-    // Use autoTable with proper typing
-    try {
-      autoTable(doc, {
-        startY: 55,
-        head: [[convertToEnglish("شاخص"), convertToEnglish("مقدار")]],
-        body: summaryData,
-        styles: {
-          fontSize: 10,
-          textColor: [0, 0, 0],
-          halign: "left",
-          cellPadding: 3,
-        },
-        headStyles: {
-          fillColor: [66, 139, 202],
-          textColor: [255, 255, 255],
-          fontStyle: "bold",
-          halign: "left",
-        },
-        alternateRowStyles: {
-          fillColor: [245, 245, 245],
-        },
-        margin: { right: 20, left: 20 },
-      });
-    } catch (tableError) {
-      console.warn("Summary table generation failed:", tableError);
-    }
+    doc.text(timeText, 148.5, 37, { align: "center" });
 
     // Add nationality breakdown
-    const currentY = (doc as any).lastAutoTable?.finalY + 10 || 70;
+    const currentY = 55; // Fixed position after header
     doc.setFontSize(14);
     const nationalityTitle = convertToEnglish("توزیع بر اساس ملیت");
     doc.text(nationalityTitle, 20, currentY);
@@ -446,10 +401,10 @@ export async function GET(request: NextRequest) {
         ],
         body: guestTableData,
         styles: {
-          fontSize: 7,
+          fontSize: 8,
           textColor: [0, 0, 0],
           halign: "left",
-          cellPadding: 1,
+          cellPadding: 2,
           overflow: "linebreak",
           cellWidth: "wrap",
         },
@@ -464,15 +419,15 @@ export async function GET(request: NextRequest) {
         },
         margin: { right: 5, left: 5 },
         columnStyles: {
-          0: { cellWidth: 20 }, // Name
-          1: { cellWidth: 25 }, // Email
-          2: { cellWidth: 18 }, // Phone
-          3: { cellWidth: 15 }, // Nationality
-          4: { cellWidth: 12 }, // Stay Count
-          5: { cellWidth: 18 }, // Check-in Date
-          6: { cellWidth: 18 }, // Check-out Date
-          7: { cellWidth: 22 }, // ID/Passport
-          8: { cellWidth: 15 }, // Room Number
+          0: { cellWidth: 25 }, // Name
+          1: { cellWidth: 30 }, // Email
+          2: { cellWidth: 20 }, // Phone
+          3: { cellWidth: 18 }, // Nationality
+          4: { cellWidth: 15 }, // Stay Count
+          5: { cellWidth: 20 }, // Check-in Date
+          6: { cellWidth: 20 }, // Check-out Date
+          7: { cellWidth: 25 }, // ID/Passport
+          8: { cellWidth: 18 }, // Room Number
         },
       });
     } catch (tableError) {
@@ -481,16 +436,17 @@ export async function GET(request: NextRequest) {
 
     // Add footer
     const pageHeight = doc.internal.pageSize.height;
+    const pageWidth = doc.internal.pageSize.width;
     const footerY = pageHeight - 20;
     doc.setFontSize(8);
     const footerText = convertToEnglish("تولید شده توسط سیستم مدیریت هتل");
-    doc.text(footerText, 105, footerY, {
+    doc.text(footerText, pageWidth / 2, footerY, {
       align: "center",
     });
 
     const pageText =
       convertToEnglish("صفحه") + ` ${(doc as any).internal.getNumberOfPages()}`;
-    doc.text(pageText, 105, footerY + 7, {
+    doc.text(pageText, pageWidth / 2, footerY + 7, {
       align: "center",
     });
 
