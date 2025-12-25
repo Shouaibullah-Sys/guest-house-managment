@@ -1,6 +1,7 @@
 // lib/pdf-generator.tsx
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import type { UserOptions } from "jspdf-autotable";
 
 // Types
 export interface Doctor {
@@ -53,13 +54,12 @@ export interface LaboratoryTestWithDetails {
   results?: any[];
 }
 
-// Declare jsPDF with autoTable plugin
+// Extend jsPDF interface with autoTable plugin properties
 declare module "jspdf" {
   interface jsPDF {
     lastAutoTable?: {
       finalY: number;
     };
-    autoTable: (options: any) => void;
   }
 }
 
