@@ -6,7 +6,7 @@ import dbConnect from "@/lib/db";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { action: string } }
+  { params }: { params: Promise<{ action: string }> }
 ) {
   try {
     // Connect to database
@@ -34,7 +34,9 @@ export async function POST(
     const { clerkClient } = await import("@clerk/nextjs/server");
     const client = await clerkClient();
 
-    switch (params.action) {
+    const { action } = await params;
+
+    switch (action) {
       case "disable": {
         // Get current user status from Clerk
         const clerkUser = await client.users.getUser(targetUserId);
@@ -89,7 +91,7 @@ export async function POST(
         return new NextResponse("Invalid action", { status: 400 });
     }
   } catch (error) {
-    console.error(`Error in ${params.action}:`, error);
+    console.error(`Error in ${action}:`, error);
 
     // Provide more specific error messages
     let errorMessage = "Internal server error";
