@@ -73,7 +73,8 @@ export async function getUserRoleInfo(
       dbRole: dbUser?.role,
       dbApproved: dbUser?.approved,
       isActive: !clerkUser.banned && dbUser?.isActive !== false,
-      lastSignInAt: clerkUser.lastSignInAt,
+      lastSignInAt:
+        clerkUser.lastSignInAt !== null ? clerkUser.lastSignInAt : undefined,
       createdAt: clerkUser.createdAt,
       issues,
     };
