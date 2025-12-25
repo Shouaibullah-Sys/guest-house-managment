@@ -27,7 +27,7 @@ function transformHeroSectionToResponse(heroSection: any) {
 // GET /api/hero-section/[id] - Get a specific hero section
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -71,7 +71,7 @@ export async function GET(
 // PUT /api/hero-section/[id] - Update a hero section
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -180,7 +180,7 @@ export async function PUT(
 // DELETE /api/hero-section/[id] - Delete a hero section
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
