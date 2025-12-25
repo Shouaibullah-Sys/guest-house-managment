@@ -326,6 +326,35 @@ function Header({
                 />
               </motion.button>
 
+              {/* Admin Button - Only visible for admin users */}
+              {isUserLoaded &&
+                isSignedIn &&
+                user &&
+                user.publicMetadata?.role === "admin" && (
+                  <motion.button
+                    data-testid="admin-button"
+                    whileHover={{ scale: 1.05, y: -1 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => router.push("/admin")}
+                    style={{
+                      scale: isScrolled ? 0.95 : 1,
+                      opacity: isScrolled ? 0.9 : 1,
+                    }}
+                    className="flex items-center gap-2 rounded-full border border-red-500/50 bg-linear-to-r from-red-500/20 to-red-600/20 px-4 py-2 text-sm text-red-300 backdrop-blur-sm hover:border-red-500/70 hover:from-red-500/30 hover:to-red-600/30 hover:text-red-200 transition-all will-change-transform group"
+                  >
+                    <Shield className="h-4 w-4" />
+                    <span>Admin</span>
+                    <motion.div
+                      className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100"
+                      style={{
+                        background:
+                          "radial-gradient(circle at center, rgba(239, 68, 68, 0.15) 0%, transparent 70%)",
+                      }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </motion.button>
+                )}
+
               {/* User/Login Button */}
               {isUserLoaded && isSignedIn && user ? (
                 <div className="relative">

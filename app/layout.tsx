@@ -9,9 +9,8 @@ import { Toaster } from "sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Dr. Sebghat Clinic - Laboratory Management System",
-  description:
-    "Professional laboratory management system for medical diagnostics and patient care",
+  title: "Totakhail-Hotel",
+  description: "Professional Hotel management system",
 };
 
 export default function RootLayout({
