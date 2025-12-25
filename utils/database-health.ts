@@ -1,5 +1,5 @@
 // utils/database-health.ts
-import { sql } from "@/db";
+import dbConnect from "@/lib/db";
 
 export class DatabaseHealth {
   private static lastChecked: number = 0;
@@ -15,8 +15,8 @@ export class DatabaseHealth {
     }
 
     try {
-      // Simple query to check database health
-      await sql`SELECT 1`;
+      // Connect to database to check health
+      await dbConnect();
       this.isHealthy = true;
       this.lastChecked = now;
       console.log("Database health check: ✅ Healthy");
@@ -35,10 +35,10 @@ export class DatabaseHealth {
   static async wakeUpDatabase(): Promise<boolean> {
     console.log("Attempting to wake up database...");
 
-    // Try multiple simple queries to wake up the database
+    // Try multiple connection attempts to wake up the database
     for (let i = 0; i < 3; i++) {
       try {
-        await sql`SELECT 1`;
+        await dbConnect();
         this.isHealthy = true;
         console.log("Database woken up successfully!");
         return true;

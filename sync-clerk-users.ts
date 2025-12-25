@@ -31,19 +31,27 @@ export async function syncClerkUsers() {
     // Process each user
     for (const clerkUser of clerkUsers.data) {
       try {
-        console.log(`\n👤 Processing user: ${clerkUser.emailAddresses[0]?.emailAddress || 'No email'}`);
+        console.log(
+          `\n👤 Processing user: ${
+            clerkUser.emailAddresses[0]?.emailAddress || "No email"
+          }`
+        );
 
         // Check if user already exists in database
         const existingUser = await User.findOne({ _id: clerkUser.id });
 
         // Extract user data from Clerk
-        const primaryEmail = clerkUser.emailAddresses.find(
-          (email) => email.id === clerkUser.primaryEmailAddressId
-        )?.emailAddress || clerkUser.emailAddresses[0]?.emailAddress || "";
+        const primaryEmail =
+          clerkUser.emailAddresses.find(
+            (email) => email.id === clerkUser.primaryEmailAddressId
+          )?.emailAddress ||
+          clerkUser.emailAddresses[0]?.emailAddress ||
+          "";
 
         const firstName = clerkUser.firstName || "";
         const lastName = clerkUser.lastName || "";
-        const fullName = `${firstName} ${lastName}`.trim() || clerkUser.username || "Guest";
+        const fullName =
+          `${firstName} ${lastName}`.trim() || clerkUser.username || "Guest";
 
         // Get role and approval status from metadata
         const metadata = clerkUser.publicMetadata || {};
@@ -54,7 +62,8 @@ export async function syncClerkUsers() {
           _id: clerkUser.id,
           name: fullName,
           email: primaryEmail,
-          emailVerified: clerkUser.emailAddresses[0]?.verification?.status === "verified",
+          emailVerified:
+            clerkUser.emailAddresses[0]?.verification?.status === "verified",
           image: clerkUser.imageUrl,
           role: userRole,
           approved: isApproved,
@@ -65,7 +74,10 @@ export async function syncClerkUsers() {
         if (existingUser) {
           // Update existing user
           console.log(`✏️ User exists, updating...`);
-          await User.findOneAndUpdate({ _id: clerkUser.id }, { $set: userData });
+          await User.findOneAndUpdate(
+            { _id: clerkUser.id },
+            { $set: userData }
+          );
           updatedCount++;
         } else {
           // Create new user
@@ -74,9 +86,13 @@ export async function syncClerkUsers() {
           await newUser.save();
           createdCount++;
         }
-
       } catch (userError) {
-        console.error(`❌ Error processing user ${clerkUser.id}:`, userError.message);
+        const errorMessage =
+          userError instanceof Error ? userError.message : String(userError);
+        console.error(
+          `❌ Error processing user ${clerkUser.id}:`,
+          errorMessage
+        );
         skippedCount++;
       }
     }
@@ -91,9 +107,9 @@ export async function syncClerkUsers() {
     // Show final user count in database
     const totalDbUsers = await User.countDocuments({});
     console.log(`📈 Total users in database: ${totalDbUsers}`);
-
   } catch (error) {
-    console.error("💥 Sync failed:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("💥 Sync failed:", errorMessage);
     throw error;
   }
 }
@@ -106,7 +122,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       process.exit(0);
     })
     .catch((error) => {
-      console.error("💥 Sync process failed:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error("💥 Sync process failed:", errorMessage);
       process.exit(1);
     });
 }
