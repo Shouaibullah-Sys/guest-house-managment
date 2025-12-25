@@ -69,7 +69,7 @@ export default function AdminNavigator() {
         <div className="flex h-16 items-center justify-between px-6 border-b border-gray-200">
           <div className="flex items-center space-x-2">
             <img
-              src="/logo.png"
+              src="/logo.jpg"
               alt="Hotel Logo"
               className="h-8 w-auto"
               onError={(e) => {
