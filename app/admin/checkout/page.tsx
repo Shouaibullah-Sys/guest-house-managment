@@ -803,12 +803,12 @@ function CheckoutContent() {
   );
 }
 
-// Main page component with Suspense boundary
+// Main page component with explicit Suspense boundary
 export default function CheckoutPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50/30 to-white dark:from-gray-900 dark:to-gray-950">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading booking details...</p>
