@@ -1,7 +1,7 @@
 // app/checkout/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { loadStripe } from "@stripe/stripe-js";
@@ -56,7 +56,8 @@ interface BookingData {
 
 type PaymentMethod = "cash" | "bank" | "stripe";
 
-export default function CheckoutPage() {
+// Component that uses search params - wrapped in Suspense
+function CheckoutContent() {
   const { isSignedIn, userId } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -799,5 +800,23 @@ export default function CheckoutPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function CheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading booking details...</p>
+          </div>
+        </div>
+      }
+    >
+      <CheckoutContent />
+    </Suspense>
   );
 }
