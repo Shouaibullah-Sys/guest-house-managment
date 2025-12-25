@@ -175,7 +175,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: "Debug endpoint error",
-        message: error.message,
+        message:
+          error instanceof Error ? error.message : "Unknown error occurred",
         timestamp: new Date().toISOString(),
       },
       { status: 500 }

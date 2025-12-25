@@ -12,46 +12,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { GuestForm } from "./guest-form";
-import { GuestFormData } from "@/lib/validation/guest";
+import { GuestFormData, GuestResponse } from "@/lib/validation/guest";
 import { Edit, User } from "lucide-react";
 
-interface Guest {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  nationality?: string;
-  idType?: "national_id" | "passport" | "driving_license" | "other";
-  idNumber?: string;
-  passportNumber?: string;
-  dateOfBirth?: string;
-  address?: string;
-  city?: string;
-  country?: string;
-  postalCode?: string;
-  emergencyContact?: {
-    name: string;
-    phone: string;
-    relationship: string;
-  };
-  preferences?: {
-    roomType?: string;
-    floor?: string;
-    amenities?: string[];
-    dietary?: string[];
-    smoking?: boolean;
-    specialNeeds?: string[];
-  };
-  loyaltyPoints: number;
-  totalStays: number;
-  totalSpent: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
 interface EditGuestDialogProps {
-  guest: Guest | null;
+  guest: GuestResponse | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onGuestUpdated: () => void;

@@ -51,22 +51,9 @@ import {
 import Loader from "@/components/loader";
 import { CreateGuestDialog } from "@/components/guests/create-guest-dialog";
 import { EditGuestDialog } from "@/components/guests/edit-guest-dialog";
+import { GuestListItem, GuestResponse } from "@/lib/validation/guest";
 
-interface Guest {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  nationality: string;
-  totalStays: number;
-  totalSpent: number;
-  loyaltyPoints: number;
-  lastStay: string;
-  isActive: boolean;
-  createdAt: string;
-}
-
-const fetchGuests = async (search = ""): Promise<Guest[]> => {
+const fetchGuests = async (search = ""): Promise<GuestListItem[]> => {
   const params = new URLSearchParams();
   if (search) params.set("search", search);
 
@@ -82,7 +69,9 @@ export default function AdminGuestsPage() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
+  const [selectedGuest, setSelectedGuest] = useState<GuestResponse | null>(
+    null
+  );
 
   const queryClient = useQueryClient();
 
@@ -108,7 +97,7 @@ export default function AdminGuestsPage() {
     queryClient.invalidateQueries({ queryKey: ["guests"] });
   };
 
-  const handleEditGuest = (guest: Guest) => {
+  const handleEditGuest = (guest: GuestListItem) => {
     setSelectedGuest(guest);
     setIsEditDialogOpen(true);
   };

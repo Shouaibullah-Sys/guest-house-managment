@@ -198,10 +198,10 @@ async function handleUserCreated(clerkUser: any) {
     console.log("🎆 User creation process completed successfully!");
   } catch (error) {
     console.error("💥 Error handling user.created:", error);
-    console.error("💥 Error details:", {
-      message: error.message,
-      stack: error.stack,
-    });
+    console.error(
+      "💥 Error details:",
+      "Error occurred during user creation process"
+    );
     throw error;
   }
 }
