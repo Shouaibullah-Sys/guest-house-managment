@@ -26,7 +26,7 @@ function transformRoomToResponse(room: any) {
 // POST /api/rooms/{id}/actions - Perform quick actions on a room
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -36,7 +36,7 @@ export async function POST(
 
     await dbConnect();
 
-    const roomId = params.id;
+    const { id: roomId } = await params;
 
     // Validate ObjectId format
     if (!Types.ObjectId.isValid(roomId)) {
