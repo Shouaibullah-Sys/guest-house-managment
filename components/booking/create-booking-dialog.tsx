@@ -9,12 +9,16 @@ interface CreateBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onBookingCreated: () => void;
+  onNavigateToSales?: (guestName: string, bookingId: string) => void;
+  preSelectedGuest?: any;
 }
 
 export function CreateBookingDialog({
   open,
   onOpenChange,
   onBookingCreated,
+  onNavigateToSales,
+  preSelectedGuest,
 }: CreateBookingDialogProps) {
   const handleBookingCreated = () => {
     onBookingCreated();
@@ -26,6 +30,8 @@ export function CreateBookingDialog({
       open={open}
       onOpenChange={onOpenChange}
       onSuccess={handleBookingCreated}
+      onNavigateToSales={onNavigateToSales}
+      preSelectedGuest={preSelectedGuest}
     />
   );
 }

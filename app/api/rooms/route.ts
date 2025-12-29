@@ -5,18 +5,22 @@ import { Room } from "@/models/Room";
 import { RoomType } from "@/models/RoomType";
 import { Booking } from "@/models/Booking";
 import dbConnect from "@/lib/db";
+import {
+  searchRoomQuerySchema,
+  createRoomSchema,
+  updateRoomSchema,
+  deleteRoomQuerySchema,
+  roomResponseSchema,
+  checkRoomAvailabilitySchema,
+  roomAvailabilityResponseSchema,
+  type CreateRoomInput,
+  type UpdateRoomInput,
+  type SearchRoomQuery,
+  type CheckRoomAvailabilityInput,
+} from "@/lib/validation/room";
 import { z } from "zod";
 
-// Search query validation
-const searchQuerySchema = z.object({
-  search: z.string().optional(),
-  status: z.string().optional(),
-  floor: z.string().optional(),
-  roomType: z.string().optional(),
-  category: z.string().optional(),
-  page: z.string().optional(),
-  limit: z.string().optional(),
-});
+
 
 // Helper function to safely convert Decimal128 to number
 function convertToNumber(value: any): number {
@@ -90,15 +94,15 @@ export async function GET(request: NextRequest) {
     await dbConnect();
 
     const searchParams = request.nextUrl.searchParams;
-    const query = searchQuerySchema.parse({
-      search: searchParams.get("search") ?? undefined,
-      status: searchParams.get("status") ?? undefined,
-      floor: searchParams.get("floor") ?? undefined,
-      roomType: searchParams.get("roomType") ?? undefined,
-      category: searchParams.get("category") ?? undefined,
-      page: searchParams.get("page") ?? undefined,
-      limit: searchParams.get("limit") ?? undefined,
+    const queryData: Record<string, string> = {};
+    
+    // Extract all search parameters
+    searchParams.forEach((value, key) => {
+      queryData[key] = value;
     });
+
+    // Validate and parse query parameters
+    const query: SearchRoomQuery = searchRoomQuerySchema.parse(queryData);
 
     // Build filter
     const filter: any = {};
@@ -199,27 +203,7 @@ export async function POST(request: NextRequest) {
     await dbConnect();
 
     const body = await request.json();
-
-    // Basic room validation
-    const roomSchema = z.object({
-      roomNumber: z.string().min(1),
-      roomTypeId: z.string().min(1),
-      floor: z.number().min(1),
-      status: z
-        .enum(["available", "occupied", "maintenance", "cleaning", "reserved"])
-        .default("available"),
-      notes: z.string().optional(),
-      imageUrl: z.string().optional(),
-      metadata: z
-        .object({
-          theme: z.string().optional(),
-          addedBy: z.string().optional(),
-          timestamp: z.string().optional(),
-        })
-        .optional(),
-    });
-
-    const roomData = roomSchema.parse(body);
+    const roomData: CreateRoomInput = createRoomSchema.parse(body);
 
     // Check if room number already exists
     const existingRoom = await Room.findOne({
@@ -306,21 +290,7 @@ export async function PUT(request: NextRequest) {
     await dbConnect();
 
     const body = await request.json();
-
-    // Basic room validation
-    const roomSchema = z.object({
-      id: z.string().min(1),
-      roomNumber: z.string().min(1).optional(),
-      roomTypeId: z.string().min(1).optional(),
-      floor: z.number().min(1).optional(),
-      status: z
-        .enum(["available", "occupied", "maintenance", "cleaning", "reserved"])
-        .optional(),
-      notes: z.string().optional(),
-      imageUrl: z.string().optional(),
-    });
-
-    const roomData = roomSchema.parse(body);
+    const roomData: UpdateRoomInput = updateRoomSchema.parse(body);
 
     // Check if room exists
     const existingRoom = await Room.findById(roomData.id);
@@ -417,14 +387,13 @@ export async function DELETE(request: NextRequest) {
     await dbConnect();
 
     const searchParams = request.nextUrl.searchParams;
-    const roomId = searchParams.get("id");
+    const queryData: Record<string, string> = {};
+    
+    searchParams.forEach((value, key) => {
+      queryData[key] = value;
+    });
 
-    if (!roomId) {
-      return NextResponse.json(
-        { error: "Room ID is required" },
-        { status: 400 }
-      );
-    }
+    const { id: roomId } = deleteRoomQuerySchema.parse(queryData);
 
     // Check if room exists
     const room = await Room.findById(roomId);

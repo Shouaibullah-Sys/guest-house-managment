@@ -115,8 +115,8 @@ export function EditGuestDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
-        <DialogHeader>
+<DialogContent className="!max-w-[1200px] !w-[95vw] max-h-[95vh] overflow-y-auto px-4">    
+      <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Edit className="h-6 w-6 text-primary" />
             ویرایش اطلاعات میهمان

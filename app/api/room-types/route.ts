@@ -3,6 +3,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { RoomType } from "@/models/RoomType";
 import dbConnect from "@/lib/db";
+import {
+  searchRoomTypeQuerySchema,
+  createRoomTypeSchema,
+  updateRoomTypeSchema,
+  deleteRoomTypeQuerySchema,
+  roomTypeResponseSchema,
+  type CreateRoomTypeInput,
+  type UpdateRoomTypeInput,
+  type SearchRoomTypeQuery,
+} from "@/lib/validation/room-type";
 import { z } from "zod";
 
 // Helper function to safely convert Decimal128 to number
@@ -55,20 +65,33 @@ export async function GET(request: NextRequest) {
     await dbConnect();
 
     const searchParams = request.nextUrl.searchParams;
-    const category = searchParams.get("category");
-    const isActive = searchParams.get("isActive");
+    const queryData: Record<string, string> = {};
+    
+    // Extract all search parameters
+    searchParams.forEach((value, key) => {
+      queryData[key] = value;
+    });
 
-    // Build filter
+    // Validate and parse query parameters
+    const query: SearchRoomTypeQuery = searchRoomTypeQuerySchema.parse(queryData);
+
+    // Build filter from query parameters
     const filter: any = {};
-
-    // Apply category filter
-    if (category && category !== "all") {
-      filter.category = category;
+    
+    if (query.search) {
+      filter.$or = [
+        { name: { $regex: query.search, $options: 'i' } },
+        { code: { $regex: query.search, $options: 'i' } },
+        { description: { $regex: query.search, $options: 'i' } }
+      ];
     }
-
-    // Apply active filter
-    if (isActive !== null && isActive !== "all") {
-      filter.isActive = isActive === "true";
+    
+    if (query.category) {
+      filter.category = query.category;
+    }
+    
+    if (query.isActive !== undefined) {
+      filter.isActive = query.isActive;
     }
 
     // Get room types
@@ -100,27 +123,7 @@ export async function POST(request: NextRequest) {
     await dbConnect();
 
     const body = await request.json();
-
-    // Basic room type validation
-    const roomTypeSchema = z.object({
-      name: z.string().min(1),
-      code: z.string().min(1),
-      category: z.enum(["luxury", "executive", "standard", "family"]),
-      description: z.string().optional(),
-      maxOccupancy: z.number().min(1),
-      basePrice: z.number().min(0),
-      extraPersonPrice: z.number().min(0).optional(),
-      amenities: z.array(z.string()).optional(),
-      premiumAmenities: z.array(z.string()).optional(),
-      images: z.array(z.string()).optional(),
-      size: z.string().optional(),
-      bedType: z.string().optional(),
-      viewType: z.enum(["mountain", "city", "garden", "pool"]).default("city"),
-      smokingAllowed: z.boolean().default(false),
-      isActive: z.boolean().default(true),
-    });
-
-    const roomTypeData = roomTypeSchema.parse(body);
+    const roomTypeData: CreateRoomTypeInput = createRoomTypeSchema.parse(body);
 
     // Check if room type code already exists
     const existingRoomType = await RoomType.findOne({

@@ -2,8 +2,9 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   useReactTable,
@@ -155,6 +156,40 @@ export default function AdminBookingsPage() {
   const { theme, setTheme } = useTheme();
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  
+  // Check for auto-open query parameters
+  const guestId = searchParams.get('guestId');
+  const autoOpen = searchParams.get('autoOpen') === 'true';
+  
+  // Handle auto-open of create booking dialog with pre-selected guest
+  useEffect(() => {
+    if (autoOpen && guestId) {
+      // Fetch the guest details and set it as pre-selected
+      const fetchGuestAndOpenDialog = async () => {
+        try {
+          const token = await getToken();
+          if (token) {
+            const response = await fetch(`/api/guests/${guestId}`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            });
+            
+            if (response.ok) {
+              const guestData = await response.json();
+              setPreSelectedGuest(guestData.data);
+              setCreateDialogOpen(true);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching guest for auto-open:', error);
+        }
+      };
+      
+      fetchGuestAndOpenDialog();
+    }
+  }, [autoOpen, guestId, getToken]);
 
   // Authenticated fetch function
   const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
@@ -195,6 +230,7 @@ export default function AdminBookingsPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [preSelectedGuest, setPreSelectedGuest] = useState<any>(null);
   const [checkinDialogOpen, setCheckinDialogOpen] = useState(false);
   const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -976,10 +1012,25 @@ export default function AdminBookingsPage() {
       {/* Dialogs */}
       <CreateBookingDialog
         open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
+        onOpenChange={(open) => {
+          setCreateDialogOpen(open);
+          if (!open) {
+            setPreSelectedGuest(null);
+          }
+        }}
         onBookingCreated={() => {
           queryClient.invalidateQueries({ queryKey: ["bookings"] });
         }}
+        onNavigateToSales={(guestName, bookingId) => {
+          // Navigate to sales page with guest info
+          const params = new URLSearchParams({
+            autoSelect: 'true',
+            guestName: guestName,
+            bookingId: bookingId
+          });
+          window.location.href = `/admin/sales?${params.toString()}`;
+        }}
+        preSelectedGuest={preSelectedGuest}
       />
 
       <EditBookingDialog

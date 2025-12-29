@@ -1,8 +1,9 @@
 // components/FeaturedHotels.tsx
 import { useState, useRef, useEffect } from "react";
-import { hotels, Hotel } from "@/lib/constants";
+import { Hotel } from "@/lib/constants";
 import { Button } from "./FeaturedButton";
 import { HotelCard } from "./HotelCard";
+import { fetchFeaturedRooms, getAvailableCategories } from "@/lib/featured-rooms-service";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -15,11 +16,38 @@ export const FeaturedHotels = ({
   onBookNow: (hotel: Hotel) => void;
 }) => {
   const [activeFilter, setActiveFilter] = useState("all");
+  const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<string[]>(["all"]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLDivElement>(null);
   const lastFilterRef = useRef<string>(activeFilter);
+
+  // Fetch data on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const [hotelsData, categoriesData] = await Promise.all([
+          fetchFeaturedRooms(),
+          getAvailableCategories(),
+        ]);
+        setHotels(hotelsData);
+        setAvailableCategories(categoriesData);
+      } catch (err) {
+        setError("Failed to load featured hotels. Please try again later.");
+        console.error("Error loading featured hotels:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const filteredHotels =
     activeFilter === "all"
@@ -229,65 +257,101 @@ export const FeaturedHotels = ({
           </p>
         </div>
 
-        {/* Hotel Categories Filter */}
-        <div
-          ref={filterRef}
-          className="flex justify-center gap-4 mb-16 flex-wrap"
-        >
-          {["all", "beach", "mountain", "city", "safari", "resort"].map(
-            (category) => (
-              <Button
-                key={category}
-                variant={category === activeFilter ? "gradient" : "outline"}
-                className={`relative overflow-hidden px-6 py-3 rounded-full transition-all duration-300 transform hover:scale-105 ${
-                  activeFilter === category
-                    ? "shadow-lg shadow-gold/20"
-                    : "opacity-90 hover:opacity-100 border-gold/30 text-gold hover:bg-gold/5"
-                }`}
-                onClick={() => setActiveFilter(category)}
-              >
-                {category.charAt(0).toUpperCase() + category.slice(1)}
-              </Button>
-            )
-          )}
-        </div>
-
-        <div
-          ref={gridRef}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10"
-        >
-          {filteredHotels.map((hotel, index) => (
-            <HotelCard
-              key={hotel.id}
-              hotel={hotel}
-              index={index}
-              onBookNow={() => onBookNow(hotel)}
-            />
-          ))}
-        </div>
-
-        <div className="text-center mt-16">
-          <Button
-            variant="outline"
-            className="px-8 py-4 text-lg border-gold/30 hover:border-gold hover:bg-gold/5 group text-gold"
-          >
-            <span className="mr-2 group-hover:translate-x-1 transition-transform">
-              View All Destinations
-            </span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 group-hover:translate-x-1 transition-transform"
-              viewBox="0 0 20 20"
-              fill="currentColor"
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold"></div>
+            <span className="ml-3 text-gold">Loading luxury rooms...</span>
+          </div>
+        ) : error ? (
+          <div className="text-center py-20">
+            <p className="text-red-400 mb-4">{error}</p>
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.reload()}
+              className="border-gold/30 text-gold hover:bg-gold/5"
             >
-              <path
-                fillRule="evenodd"
-                d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </Button>
-        </div>
+              Retry
+            </Button>
+          </div>
+        ) : (
+          <>
+            {/* Hotel Categories Filter */}
+            <div
+              ref={filterRef}
+              className="flex justify-center gap-4 mb-16 flex-wrap"
+            >
+              {availableCategories.map((category) => (
+                <Button
+                  key={category}
+                  variant={category === activeFilter ? "gradient" : "outline"}
+                  className={`relative overflow-hidden px-6 py-3 rounded-full transition-all duration-300 transform hover:scale-105 ${
+                    activeFilter === category
+                      ? "shadow-lg shadow-gold/20"
+                      : "opacity-90 hover:opacity-100 border-gold/30 text-gold hover:bg-gold/5"
+                  }`}
+                  onClick={() => setActiveFilter(category)}
+                  disabled={hotels.length === 0}
+                >
+                  {category.charAt(0).toUpperCase() + category.slice(1)}
+                </Button>
+              ))}
+            </div>
+
+            <div
+              ref={gridRef}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10"
+            >
+              {filteredHotels.length > 0 ? (
+                filteredHotels.map((hotel, index) => (
+                  <HotelCard
+                    key={hotel.id}
+                    hotel={hotel}
+                    index={index}
+                    onBookNow={() => onBookNow(hotel)}
+                  />
+                ))
+              ) : (
+                <div className="col-span-full text-center py-20">
+                  <p className="text-gold/70 text-lg mb-4">
+                    No rooms available in this category
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => setActiveFilter("all")}
+                    className="border-gold/30 text-gold hover:bg-gold/5"
+                  >
+                    View All Rooms
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="text-center mt-16">
+              <Button
+                variant="outline"
+                className="px-8 py-4 text-lg border-gold/30 hover:border-gold hover:bg-gold/5 group text-gold"
+                onClick={() => (window.location.href = "/admin/rooms")}
+              >
+                <span className="mr-2 group-hover:translate-x-1 transition-transform">
+                  View All Rooms
+                </span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 group-hover:translate-x-1 transition-transform"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </section>
   );

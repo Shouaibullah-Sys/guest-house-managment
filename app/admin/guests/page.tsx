@@ -342,6 +342,7 @@ export default function AdminGuestsPage() {
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
         onGuestCreated={handleGuestCreated}
+        navigateToBookingAfterCreate={true}
       />
 
       {/* Edit Guest Dialog */}

@@ -5,7 +5,55 @@ import { auth } from "@clerk/nextjs/server";
 import { User } from "@/models";
 import dbConnect from "@/lib/db";
 
-export async function GET(req: NextRequest) {
+// Types for better type safety
+type ApiResponse<T> = {
+  users?: T[];
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+  success?: boolean;
+  message?: string;
+  error?: string;
+};
+
+// Helper function for consistent error responses
+function createErrorResponse(message: string, status: number = 500): NextResponse<ApiResponse<never>> {
+  return NextResponse.json(
+    { error: message },
+    { 
+      status,
+      headers: {
+        'Cache-Control': 'no-store'
+      }
+    }
+  );
+}
+
+// Helper function for consistent success responses
+function createSuccessResponse<T>(data: T, options?: {
+  status?: number;
+  headers?: Record<string, string>;
+  message?: string;
+  pagination?: ApiResponse<T>['pagination'];
+}): NextResponse<ApiResponse<T>> {
+  const response = { ...data } as ApiResponse<T>;
+  
+  if (options?.message) response.message = options.message;
+  if (options?.pagination) response.pagination = options.pagination;
+
+  return NextResponse.json(response, {
+    status: options?.status || 200,
+    headers: {
+      'Cache-Control': 'private, max-age=30', // Cache for 30 seconds
+      ...options?.headers
+    }
+  });
+}
+
+export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<any>>> {
   try {
     // Connect to database
     await dbConnect();
@@ -13,26 +61,26 @@ export async function GET(req: NextRequest) {
     // Check if user is authenticated and is an admin
     const { userId } = await auth();
     if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return createErrorResponse("Unauthorized", 401);
     }
 
     // Check if current user is admin
     const currentUser = await User.findOne({ _id: userId });
     if (!currentUser || currentUser.role !== "admin") {
-      return new NextResponse("Forbidden", { status: 403 });
+      return createErrorResponse("Forbidden", 403);
     }
 
     // Use Clerk's Admin API to get all users
     const { clerkClient } = await import("@clerk/nextjs/server");
     const client = await clerkClient();
 
-    // Get query parameters
+    // Get query parameters with validation
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") || "";
     const role = searchParams.get("role") || "";
     const approved = searchParams.get("approved");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20")));
     const offset = (page - 1) * limit;
 
     // Get users from Clerk with pagination
@@ -117,8 +165,9 @@ export async function GET(req: NextRequest) {
     // Get total count from Clerk (we need to make a separate call for this)
     const totalCount = clerkUsers.totalCount;
 
-    return NextResponse.json({
+    return createSuccessResponse({
       users: filteredUsers,
+    }, {
       pagination: {
         page,
         limit,
@@ -128,12 +177,12 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("Error fetching users:", error);
-    return new NextResponse("Internal server error", { status: 500 });
+    return createErrorResponse("Internal server error", 500);
   }
 }
 
 // DELETE endpoint for user deletion
-export async function DELETE(req: NextRequest) {
+export async function DELETE(req: NextRequest): Promise<NextResponse<ApiResponse<{ success: boolean; message: string }>>> {
   try {
     // Connect to database
     await dbConnect();
@@ -141,20 +190,20 @@ export async function DELETE(req: NextRequest) {
     // Check if user is authenticated and is an admin
     const { userId } = await auth();
     if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return createErrorResponse("Unauthorized", 401);
     }
 
     // Check if current user is admin
     const currentUser = await User.findOne({ _id: userId });
     if (!currentUser || currentUser.role !== "admin") {
-      return new NextResponse("Forbidden", { status: 403 });
+      return createErrorResponse("Forbidden", 403);
     }
 
     const { searchParams } = new URL(req.url);
     const userIdToDelete = searchParams.get("id");
 
     if (!userIdToDelete) {
-      return new NextResponse("User ID is required", { status: 400 });
+      return createErrorResponse("User ID is required", 400);
     }
 
     // Use Clerk's Admin API to delete user
@@ -175,12 +224,12 @@ export async function DELETE(req: NextRequest) {
       }
     );
 
-    return NextResponse.json({
+    return createSuccessResponse({
       success: true,
       message: "User deleted successfully",
     });
   } catch (error) {
     console.error("Error deleting user:", error);
-    return new NextResponse("Internal server error", { status: 500 });
+    return createErrorResponse("Internal server error", 500);
   }
 }

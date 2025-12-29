@@ -517,7 +517,7 @@ const getRevenueCardInfo = (dateRange: DateRange) => {
     isSameDay(dateRange.to, today)
   ) {
     return {
-      title: "کل درآمد",
+      title: "مجموع درآمد",
       dateText: "همه زمان",
     };
   }
@@ -831,7 +831,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({
         {/* Report Generation Section */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-muted-foreground">
-            گزارش روزانه میهمانان
+            گزارش روزانه میهمانان (Excel)
           </label>
           <div className="flex gap-2">
             <input
@@ -849,7 +849,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({
               className="flex items-center gap-2"
             >
               <FileText className="h-4 w-4" />
-              {isGeneratingReport ? "در حال تولید..." : "دانلود PDF"}
+              {isGeneratingReport ? "در حال تولید..." : "دانلود Excel"}
             </Button>
           </div>
         </div>
@@ -1152,14 +1152,14 @@ export default function HotelAdminDashboard() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `گزارش-میهمانان-${reportDate}.pdf`;
+      a.download = `گزارش-میهمانان-${reportDate}.xlsx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
       toast.success("گزارش میهمانان با موفقیت تولید شد", {
-        description: "فایل PDF در دستگاه شما دانلود شد",
+        description: "فایل Excel در دستگاه شما دانلود شد",
       });
     } catch (error) {
       console.error("Error generating guest report:", error);
@@ -1240,7 +1240,7 @@ export default function HotelAdminDashboard() {
                 autoRefresh ? "bg-green-500 animate-pulse" : "bg-gray-400"
               }`}
             ></div>
-            {autoRefresh ? "تازه‌سازی خودکار" : "دستی"}
+            {autoRefresh ? "Automatic Refresh" : "manual"}
           </div>
           <Button
             variant="outline"
@@ -1344,7 +1344,7 @@ export default function HotelAdminDashboard() {
         <Card className="bg-card border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">
-              کل درآمد
+              مجموع درآمد
             </CardTitle>
             <DollarSign className="h-4 w-4 text-primary" />
           </CardHeader>
@@ -1361,7 +1361,7 @@ export default function HotelAdminDashboard() {
         <Card className="bg-card border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium">
-              نرخ اشغال
+              درصد رزروها
             </CardTitle>
             <Bed className="h-4 w-4 text-blue-600" />
           </CardHeader>
@@ -1455,7 +1455,7 @@ export default function HotelAdminDashboard() {
             className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
           >
             <DollarSign className="h-3 w-3 sm:h-4 sm:w-4" />
-            درآمد
+            عابد
           </TabsTrigger>
         </TabsList>
 
@@ -1577,7 +1577,7 @@ export default function HotelAdminDashboard() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs sm:text-sm font-medium">
-                  میانگین نرخ روزانه
+                  میانگین کرایه اتاق‌ها روزانه
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1586,7 +1586,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex items-center text-xs text-muted-foreground mt-1">
                   <DollarSign className="h-3 w-3 mr-1" />
-                  به ازای هر اتاق اشغال شده
+                  به ازای هر اتاق پر شده
                 </div>
               </CardContent>
             </Card>
@@ -1683,7 +1683,7 @@ export default function HotelAdminDashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    نرخ اشغال
+                    درصد اتاق های پر
                   </span>
                   <span className="font-medium text-sm sm:text-base">
                     {occupancyRate}%
@@ -1715,7 +1715,7 @@ export default function HotelAdminDashboard() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs sm:text-sm text-muted-foreground">
-                        اشغال شده
+                        اتاق های پر شده
                       </span>
                       <span className="font-medium text-sm sm:text-base text-blue-600">
                         {roomStatus.occupied}
@@ -1772,7 +1772,7 @@ export default function HotelAdminDashboard() {
                     <BedDouble className="h-6 w-6 text-primary" />
                     <span className="text-sm">مدیریت اتاق‌ها</span>
                     <span className="text-xs text-muted-foreground">
-                      مشاهده و ویرایش اتاق‌ها
+                      مشاهده و تغییرات در اتاق‌ها
                     </span>
                   </Link>
                 </Button>
@@ -1822,7 +1822,7 @@ export default function HotelAdminDashboard() {
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    کل مهمانان
+                    تمام مهمانان
                   </span>
                   <span className="font-medium text-sm sm:text-base">
                     {guestAnalytics?.totalGuests?.toLocaleString() || 0}
@@ -1973,7 +1973,7 @@ export default function HotelAdminDashboard() {
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-xs sm:text-sm text-muted-foreground">
-                    کل درآمد
+                    مجموع عواید
                   </span>
                   <span className="font-medium text-sm sm:text-base text-green-600">
                     ${revenueAnalytics?.totalRevenue?.toLocaleString() || 0}

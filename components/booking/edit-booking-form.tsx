@@ -30,9 +30,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Calendar, Users, DollarSign, Edit } from "lucide-react";
+import { Loader2, Calendar, Users, DollarSign, Edit, Building, FileText, CreditCard } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
 // Validation schema for editing
@@ -223,10 +224,10 @@ export function EditBookingForm({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+<DialogContent className="!max-w-[1200px] !w-[95vw] max-h-[95vh] overflow-y-auto px-4">    
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Edit className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Edit className="h-5 w-5 text-primary" />
             ویرایش رزرو #{booking.bookingNumber}
           </DialogTitle>
           <DialogDescription>
@@ -243,89 +244,328 @@ export function EditBookingForm({
               </Alert>
             )}
 
-            {/* Guest and Room Information (Read-only) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
-              <div>
-                <Label className="text-sm text-muted-foreground">میهمان</Label>
-                <div className="font-medium">{booking.guestName}</div>
-              </div>
-              <div>
-                <Label className="text-sm text-muted-foreground">اتاق</Label>
-                <div className="font-medium">
-                  {booking.roomNumber} - {booking.roomType}
+            {/* Main Two-Column Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+              {/* Left Column - Booking Details & Dates */}
+              <div className="space-y-6">
+                {/* Guest and Room Information (Read-only) */}
+                <div className="space-y-4">
+                  <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-primary" />
+                      <Label className="text-base font-medium">اطلاعات میهمان</Label>
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">نام میهمان</div>
+                      <div className="font-medium">{booking.guestName}</div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Building className="h-5 w-5 text-primary" />
+                      <Label className="text-base font-medium">اطلاعات اتاق</Label>
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">شماره اتاق</div>
+                      <div className="font-medium">{booking.roomNumber}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">نوع اتاق</div>
+                      <div className="font-medium">{booking.roomType}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dates */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-primary" />
+                    <Label className="text-base font-medium">تاریخ‌های رزرو</Label>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="checkInDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>تاریخ ورود *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              min={getMinDate()}
+                              max={getMaxDate()}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="checkOutDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>تاریخ خروج *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              min={checkInDate || getMinDate()}
+                              max={getMaxDate()}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Guests Count */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    <Label className="text-base font-medium">تعداد نفرات *</Label>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="adults"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>بزرگسال</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="1"
+                              max="10"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseInt(e.target.value) || 1)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="children"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>کودک (۲-۱۲ سال)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="10"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseInt(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="infants"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>نوزاد (۰-۲ سال)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="5"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(parseInt(e.target.value) || 0)
+                              }
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Dates */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="checkInDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      تاریخ ورود *
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type="date"
-                        min={getMinDate()}
-                        max={getMaxDate()}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Right Column - Status, Payment & Additional Info */}
+              <div className="space-y-6">
+                {/* Status Fields */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    <Label className="text-base font-medium">وضعیت‌ها</Label>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>وضعیت رزرو *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="انتخاب وضعیت" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {statusOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-              <FormField
-                control={form.control}
-                name="checkOutDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      تاریخ خروج *
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type="date"
-                        min={checkInDate || getMinDate()}
-                        max={getMaxDate()}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                    <FormField
+                      control={form.control}
+                      name="paymentStatus"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>وضعیت پرداخت *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="انتخاب وضعیت پرداخت" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {paymentStatusOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
 
-            {/* Guests Count */}
-            <div className="space-y-3">
-              <Label className="text-base font-medium flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                تعداد نفرات *
-              </Label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Room Rate & Booking Summary */}
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="roomRate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <DollarSign className="h-5 w-5 text-primary" />
+                          قیمت هر شب (افغانی) *
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(parseFloat(e.target.value) || 0)
+                            }
+                            className="font-mono"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Booking Summary */}
+                  {totalNights > 0 && (
+                    <div className="p-4 bg-muted/50 rounded-lg border space-y-3">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-5 w-5 text-primary" />
+                        <h4 className="font-medium">خلاصه رزرو (بروزرسانی شده)</h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <div className="text-muted-foreground">تعداد شب</div>
+                          <div className="font-medium">{totalNights} شب</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">قیمت هر شب</div>
+                          <div className="font-medium">
+                            {roomRate.toLocaleString("fa-IR")} افغانی
+                          </div>
+                        </div>
+                        <div className="col-span-2">
+                          <div className="text-muted-foreground">مبلغ کل جدید</div>
+                          <div className="font-medium text-lg text-primary">
+                            {totalAmount.toLocaleString("fa-IR")} افغانی
+                          </div>
+                        </div>
+                        <div className="col-span-2">
+                          <div className="text-muted-foreground">مبلغ قبلی</div>
+                          <div className="font-medium line-through text-muted-foreground">
+                            {booking.totalAmount.toLocaleString("fa-IR")} افغانی
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
+                        <div className="text-sm text-blue-800">
+                          <strong>پرداخت شده:</strong>{" "}
+                          {booking.paidAmount.toLocaleString("fa-IR")} افغانی
+                        </div>
+                        <div className="text-sm text-blue-800">
+                          <strong>باقیمانده جدید:</strong>{" "}
+                          {(totalAmount - booking.paidAmount).toLocaleString("fa-IR")}{" "}
+                          افغانی
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Source */}
                 <FormField
                   control={form.control}
-                  name="adults"
+                  name="source"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>بزرگسال</FormLabel>
+                      <FormLabel>منبع رزرو</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
-                          min="1"
-                          max="10"
+                        <Input placeholder="وب‌سایت، تلفن، حضوری..." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Special Requests */}
+                <FormField
+                  control={form.control}
+                  name="specialRequests"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        درخواست‌های ویژه
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="درخواست‌های خاص میهمان (اختیاری)..."
+                          className="min-h-[100px]"
+                          rows={4}
                           {...field}
-                          onChange={(e) =>
-                            field.onChange(parseInt(e.target.value) || 1)
-                          }
                         />
                       </FormControl>
                       <FormMessage />
@@ -333,43 +573,22 @@ export function EditBookingForm({
                   )}
                 />
 
+                {/* Notes */}
                 <FormField
                   control={form.control}
-                  name="children"
+                  name="notes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>کودک (۲-۱۲ سال)</FormLabel>
+                      <FormLabel className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        یادداشت‌های داخلی
+                      </FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="10"
+                        <Textarea
+                          placeholder="یادداشت‌های مدیریتی (اختیاری)..."
+                          className="min-h-[100px]"
+                          rows={4}
                           {...field}
-                          onChange={(e) =>
-                            field.onChange(parseInt(e.target.value) || 0)
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="infants"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>نوزاد (۰-۲ سال)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="5"
-                          {...field}
-                          onChange={(e) =>
-                            field.onChange(parseInt(e.target.value) || 0)
-                          }
                         />
                       </FormControl>
                       <FormMessage />
@@ -379,206 +598,30 @@ export function EditBookingForm({
               </div>
             </div>
 
-            {/* Status Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>وضعیت رزرو *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="انتخاب وضعیت" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {statusOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="paymentStatus"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>وضعیت پرداخت *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="انتخاب وضعیت پرداخت" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {paymentStatusOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Booking Summary */}
-            {totalNights > 0 && (
-              <div className="p-4 bg-muted/50 rounded-lg border">
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" />
-                  خلاصه رزرو (بروزرسانی شده)
-                </h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <div className="text-muted-foreground">تعداد شب</div>
-                    <div className="font-medium">{totalNights} شب</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">قیمت هر شب</div>
-                    <div className="font-medium">
-                      {roomRate.toLocaleString("fa-IR")} افغانی
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">مبلغ کل جدید</div>
-                    <div className="font-medium text-lg text-primary">
-                      {totalAmount.toLocaleString("fa-IR")} افغانی
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">مبلغ قبلی</div>
-                    <div className="font-medium line-through text-muted-foreground">
-                      {booking.totalAmount.toLocaleString("fa-IR")} افغانی
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
-                  <div className="text-sm text-blue-800">
-                    <strong>پرداخت شده:</strong>{" "}
-                    {booking.paidAmount.toLocaleString("fa-IR")} افغانی
-                  </div>
-                  <div className="text-sm text-blue-800">
-                    <strong>باقیمانده جدید:</strong>{" "}
-                    {(totalAmount - booking.paidAmount).toLocaleString("fa-IR")}{" "}
-                    افغانی
-                  </div>
-                </div>
+            {/* Submit Button */}
+            <div className="pt-6 border-t">
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleOpenChange(false)}
+                  disabled={isSubmitting}
+                  className="w-full sm:w-auto"
+                >
+                  لغو
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || totalNights <= 0}
+                  className="w-full sm:w-auto"
+                >
+                  {isSubmitting && (
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  )}
+                  {isSubmitting ? "در حال بروزرسانی..." : "بروزرسانی رزرو"}
+                </Button>
               </div>
-            )}
-
-            {/* Room Rate */}
-            <FormField
-              control={form.control}
-              name="roomRate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
-                    قیمت هر شب (افغانی) *
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      {...field}
-                      onChange={(e) =>
-                        field.onChange(parseFloat(e.target.value) || 0)
-                      }
-                      className="font-mono"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Special Requests */}
-            <FormField
-              control={form.control}
-              name="specialRequests"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>درخواست‌های ویژه</FormLabel>
-                  <FormControl>
-                    <textarea
-                      placeholder="درخواست‌های خاص میهمان (اختیاری)..."
-                      className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      rows={3}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Notes */}
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>یادداشت‌های داخلی</FormLabel>
-                  <FormControl>
-                    <textarea
-                      placeholder="یادداشت‌های مدیریتی (اختیاری)..."
-                      className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      rows={3}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Source */}
-            <FormField
-              control={form.control}
-              name="source"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>منبع رزرو</FormLabel>
-                  <FormControl>
-                    <Input placeholder="وب‌سایت، تلفن، حضوری..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <DialogFooter className="gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleOpenChange(false)}
-                disabled={isSubmitting}
-              >
-                لغو
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting || totalNights <= 0}
-                className="min-w-[120px]"
-              >
-                {isSubmitting && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {isSubmitting ? "در حال بروزرسانی..." : "بروزرسانی رزرو"}
-              </Button>
-            </DialogFooter>
+            </div>
           </form>
         </Form>
       </DialogContent>

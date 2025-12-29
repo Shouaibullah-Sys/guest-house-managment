@@ -11,6 +11,55 @@ import {
   type GuestListItem,
 } from "@/lib/validation/guest";
 
+// Types for better type safety
+type ApiResponse<T> = {
+  data?: T;
+  error?: string;
+  message?: string;
+  pagination?: {
+    page: number;
+    limit: number;
+    totalCount: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+};
+
+// Helper function for consistent error responses
+function createErrorResponse(message: string, status: number = 500): NextResponse<ApiResponse<never>> {
+  return NextResponse.json(
+    { error: message },
+    { 
+      status,
+      headers: {
+        'Cache-Control': 'no-store'
+      }
+    }
+  );
+}
+
+// Helper function for consistent success responses
+function createSuccessResponse<T>(data: T, options?: {
+  status?: number;
+  headers?: Record<string, string>;
+  message?: string;
+  pagination?: ApiResponse<T>['pagination'];
+}): NextResponse<ApiResponse<T>> {
+  const response: ApiResponse<T> = { data };
+  
+  if (options?.message) response.message = options.message;
+  if (options?.pagination) response.pagination = options.pagination;
+
+  return NextResponse.json(response, {
+    status: options?.status || 200,
+    headers: {
+      'Cache-Control': 'private, max-age=60', // Cache for 1 minute
+      ...options?.headers
+    }
+  });
+}
+
 // Search query validation
 const searchQuerySchema = z.object({
   search: z.string().optional(),
@@ -50,11 +99,11 @@ function transformUserToGuest(user: any): GuestListItem {
 }
 
 // GET /api/guests - List guests with search and filtering
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<GuestListItem[]>>> {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return createErrorResponse("Unauthorized", 401);
     }
 
     await dbConnect();
@@ -88,9 +137,9 @@ export async function GET(request: NextRequest) {
       filter.isActive = false;
     }
 
-    // Pagination
-    const page = parseInt(query.page || "1");
-    const limit = parseInt(query.limit || "50");
+    // Pagination with validation
+    const page = Math.max(1, parseInt(query.page || "1"));
+    const limit = Math.min(100, Math.max(1, parseInt(query.limit || "50")));
     const skip = (page - 1) * limit;
 
     // Get total count for pagination
@@ -105,10 +154,9 @@ export async function GET(request: NextRequest) {
       .lean();
 
     // Transform to guest format
-    const guests = users.map(transformUserToGuest);
+    const guests: GuestListItem[] = users.map(transformUserToGuest);
 
-    return NextResponse.json({
-      data: guests,
+    return createSuccessResponse(guests, {
       pagination: {
         page,
         limit,
@@ -121,21 +169,18 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Error fetching guests:", error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return createErrorResponse(error.message, 400);
     }
-    return NextResponse.json(
-      { error: "Failed to fetch guests" },
-      { status: 500 }
-    );
+    return createErrorResponse("Failed to fetch guests");
   }
 }
 
 // POST /api/guests - Create a new guest
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<GuestListItem>>> {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return createErrorResponse("Unauthorized", 401);
     }
 
     await dbConnect();
@@ -146,20 +191,14 @@ export async function POST(request: NextRequest) {
     // Check if email already exists
     const existingUser = await User.findOne({ email: guestData.email });
     if (existingUser) {
-      return NextResponse.json(
-        { error: "این ایمیل قبلاً استفاده شده است" },
-        { status: 400 }
-      );
+      return createErrorResponse("Email already exists", 400);
     }
 
     // Check if phone already exists (if provided)
     if (guestData.phone) {
       const existingPhone = await User.findOne({ phone: guestData.phone });
       if (existingPhone) {
-        return NextResponse.json(
-          { error: "این شماره تلفن قبلاً استفاده شده است" },
-          { status: 400 }
-        );
+        return createErrorResponse("Phone number already exists", 400);
       }
     }
 
@@ -194,21 +233,15 @@ export async function POST(request: NextRequest) {
     // Transform and return the created guest
     const transformedGuest = transformUserToGuest(newGuest);
 
-    return NextResponse.json(
-      {
-        data: transformedGuest,
-        message: "Guest created successfully",
-      },
-      { status: 201 }
-    );
+    return createSuccessResponse(transformedGuest, {
+      status: 201,
+      message: "Guest created successfully",
+    });
   } catch (error) {
     console.error("Error creating guest:", error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return createErrorResponse(error.message, 400);
     }
-    return NextResponse.json(
-      { error: "Failed to create guest" },
-      { status: 500 }
-    );
+    return createErrorResponse("Failed to create guest");
   }
 }

@@ -33,11 +33,11 @@ function transformRoomToResponse(room: any) {
     roomNumber: room.roomNumber,
     floor: room.floor,
     status: room.status,
-    roomType: {
+    roomType: room.roomType ? {
       ...room.roomType,
       basePrice: convertToNumber(room.roomType?.basePrice),
       extraPersonPrice: convertToNumber(room.roomType?.extraPersonPrice),
-    },
+    } : null,
   };
 }
 
@@ -45,6 +45,9 @@ export async function POST(request: NextRequest) {
   try {
     console.log("Starting availability check request");
     const { userId } = await auth();
+    
+    // Make availability check public or require authentication based on your needs
+    // For now, let's make it require authentication like other room operations
     if (!userId) {
       console.log("Auth check failed: No user ID found");
       return NextResponse.json(
@@ -120,8 +123,8 @@ export async function POST(request: NextRequest) {
 
     // Sort by price (basePrice) and room number
     transformedRooms.sort((a, b) => {
-      const priceA = Number(a.roomType.basePrice);
-      const priceB = Number(b.roomType.basePrice);
+      const priceA = Number(a.roomType?.basePrice || 0);
+      const priceB = Number(b.roomType?.basePrice || 0);
       if (priceA === priceB) {
         return a.roomNumber.localeCompare(b.roomNumber);
       }

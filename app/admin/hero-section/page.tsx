@@ -509,21 +509,20 @@ export default function AdminHeroSectionPage() {
               </div>
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">
-                  🖼️ Hero Section Management
+                  🖼️ مدیریت عکس های صفحه اصلی
                 </h1>
                 <p className="text-blue-100">
-                  Manage your homepage hero sections
-                </p>
+بخش مدیریت عکس صفحه نمایش ویب سایت                </p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2 mt-3">
               <Badge variant="secondary" className="bg-white/20">
                 <ImageIcon className="h-3 w-3 ml-1" />
-                {heroSections.length} Total Sections
+                {heroSections.length} مجموع بخش ها
               </Badge>
               <Badge variant="secondary" className="bg-white/20">
                 <Check className="h-3 w-3 ml-1" />
-                {heroSections.filter((h) => h.isActive).length} Active
+                {heroSections.filter((h) => h.isActive).length} فعال
               </Badge>
             </div>
           </div>
@@ -550,15 +549,14 @@ export default function AdminHeroSectionPage() {
               }
             >
               <RefreshCw className="ml-2 h-4 w-4" />
-              Refresh
-            </Button>
+بار گزاری دوباره            </Button>
 
             <Button
               onClick={() => setIsAddDialogOpen(true)}
               className="bg-linear-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 shadow-lg"
             >
               <Plus className="ml-2 h-4 w-4" />
-              Add Hero Section
+              پست جدید 
             </Button>
           </div>
         </div>
@@ -571,13 +569,13 @@ export default function AdminHeroSectionPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                  Total Sections
+                 بخش پست ها
                 </p>
                 <p className="text-2xl font-bold mt-1">{heroSections.length}</p>
                 <div className="flex items-center gap-1 mt-2">
                   <ImageIcon className="h-3 w-3 text-emerald-500" />
                   <span className="text-xs text-muted-foreground">
-                    All hero sections
+                    تمام پست ها
                   </span>
                 </div>
               </div>
@@ -593,16 +591,14 @@ export default function AdminHeroSectionPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                  Active Sections
-                </p>
+پست های فعال                </p>
                 <p className="text-2xl font-bold mt-1">
                   {heroSections.filter((h) => h.isActive).length}
                 </p>
                 <div className="flex items-center gap-1 mt-2">
                   <Check className="h-3 w-3 text-emerald-500" />
                   <span className="text-xs text-muted-foreground">
-                    Currently displayed
-                  </span>
+نمایش فعلی                  </span>
                 </div>
               </div>
               <div className="bg-emerald-100 dark:bg-emerald-900 p-3 rounded-full">
@@ -625,7 +621,7 @@ export default function AdminHeroSectionPage() {
                 <div className="flex items-center gap-1 mt-2">
                   <EyeOff className="h-3 w-3 text-amber-500" />
                   <span className="text-xs text-muted-foreground">
-                    Not displayed
+                 بدون نمایش
                   </span>
                 </div>
               </div>
@@ -643,10 +639,10 @@ export default function AdminHeroSectionPage() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <CardTitle className="text-2xl font-bold">
-                Hero Sections
+                بخش پست ها
               </CardTitle>
               <CardDescription>
-                Manage {heroSections.length} hero sections for your homepage
+                مدیریت {heroSections.length} بخش صفحه اصلی ویب سایت
               </CardDescription>
             </div>
           </div>
@@ -674,12 +670,11 @@ export default function AdminHeroSectionPage() {
                   <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="active" className="text-emerald-600">
                     <Check className="h-3 w-3 ml-1 inline" />
-                    Active
+                    فعال
                   </SelectItem>
                   <SelectItem value="inactive" className="text-gray-600">
                     <EyeOff className="h-3 w-3 ml-1 inline" />
-                    Inactive
-                  </SelectItem>
+غیر فال                  </SelectItem>
                 </SelectContent>
               </Select>
 
@@ -696,7 +691,7 @@ export default function AdminHeroSectionPage() {
                   }}
                 >
                   <X className="ml-2 h-4 w-4" />
-                  Clear Filters
+                  پاک کاری فیلتر
                 </Button>
               </div>
             </div>
@@ -708,14 +703,14 @@ export default function AdminHeroSectionPage() {
               <Table>
                 <TableHeader className="bg-linear-to-r from-blue-50 to-emerald-50 dark:from-gray-800 dark:to-gray-900">
                   <TableRow>
-                    <TableHead className="font-bold">Order</TableHead>
-                    <TableHead className="font-bold">Image</TableHead>
-                    <TableHead className="font-bold">Title</TableHead>
-                    <TableHead className="font-bold">Location</TableHead>
-                    <TableHead className="font-bold">Description</TableHead>
-                    <TableHead className="font-bold">Status</TableHead>
-                    <TableHead className="font-bold">Created</TableHead>
-                    <TableHead className="font-bold">Actions</TableHead>
+                    <TableHead className="font-bold">آردر</TableHead>
+                    <TableHead className="font-bold">عکس</TableHead>
+                    <TableHead className="font-bold">عنوان</TableHead>
+                    <TableHead className="font-bold">موقعیت</TableHead>
+                    <TableHead className="font-bold">معلومات</TableHead>
+                    <TableHead className="font-bold">وضعیت</TableHead>
+                    <TableHead className="font-bold">ایجاد شده</TableHead>
+                    <TableHead className="font-bold">انجام</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

@@ -6,6 +6,53 @@ import dbConnect from "@/lib/db";
 import { z } from "zod";
 import mongoose from "mongoose";
 
+// Types for better type safety
+type BookingResponse = {
+  id: string;
+  bookingNumber: string;
+  guestId: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone: string;
+  roomNumber: string;
+  roomType: string;
+  checkInDate: string;
+  checkOutDate: string;
+  totalNights: number;
+  adults: number;
+  children: number;
+  infants: number;
+  totalAmount: number;
+  paidAmount: number;
+  outstandingAmount: number;
+  status: string;
+  paymentStatus: string;
+  specialRequests: string;
+  source: string;
+  createdAt: string;
+  updatedAt: string;
+  notes: string;
+};
+
+type ApiResponse<T> = {
+  data?: T;
+  error?: string;
+  message?: string;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  stats?: {
+    totalBookings: number;
+    confirmedBookings: number;
+    checkedInBookings: number;
+    revenue: number;
+    avgBookingValue: number;
+  };
+};
+
 // Search query validation
 const searchQuerySchema = z.object({
   search: z.string().optional(),
@@ -16,8 +63,8 @@ const searchQuerySchema = z.object({
   limit: z.string().optional(),
 });
 
-// Transform Booking document to frontend format
-function transformBookingToResponse(booking: any) {
+// Transform Booking document to frontend format with proper typing
+function transformBookingToResponse(booking: any): BookingResponse {
   // Helper function to convert Decimal128 to number
   const convertToNumber = (value: any): number => {
     if (typeof value === "number") return value;
@@ -29,23 +76,6 @@ function transformBookingToResponse(booking: any) {
     }
     return 0;
   };
-
-  // Log the booking data structure for debugging
-  console.log(
-    "Booking data structure:",
-    JSON.stringify(
-      {
-        id: booking._id,
-        hasGuest: !!booking.guest,
-        hasRoom: !!booking.room,
-        guestName: booking.guest?.name,
-        roomNumber: booking.room?.roomNumber,
-        roomType: booking.room?.roomType?.name,
-      },
-      null,
-      2
-    )
-  );
 
   return {
     id: booking._id.toString(),
@@ -75,12 +105,48 @@ function transformBookingToResponse(booking: any) {
   };
 }
 
+// Helper function for consistent error responses
+function createErrorResponse(message: string, status: number = 500): NextResponse<ApiResponse<never>> {
+  return NextResponse.json(
+    { error: message },
+    { 
+      status,
+      headers: {
+        'Cache-Control': 'no-store'
+      }
+    }
+  );
+}
+
+// Helper function for consistent success responses
+function createSuccessResponse<T>(data: T, options?: {
+  status?: number;
+  headers?: Record<string, string>;
+  message?: string;
+  pagination?: ApiResponse<T>['pagination'];
+  stats?: ApiResponse<T>['stats'];
+}): NextResponse<ApiResponse<T>> {
+  const response: ApiResponse<T> = { data };
+  
+  if (options?.message) response.message = options.message;
+  if (options?.pagination) response.pagination = options.pagination;
+  if (options?.stats) response.stats = options.stats;
+
+  return NextResponse.json(response, {
+    status: options?.status || 200,
+    headers: {
+      'Cache-Control': 'private, max-age=60', // Cache for 1 minute
+      ...options?.headers
+    }
+  });
+}
+
 // GET /api/bookings - List bookings with search and filtering
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<BookingResponse[]>>> {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return createErrorResponse("Unauthorized", 401);
     }
 
     await dbConnect();
@@ -178,8 +244,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Pagination
-    const page = parseInt(query.page || "1");
-    const limit = parseInt(query.limit || "10");
+    const page = Math.max(1, parseInt(query.page || "1"));
+    const limit = Math.min(100, Math.max(1, parseInt(query.limit || "10")));
     const skip = (page - 1) * limit;
 
     // Get total count for pagination
@@ -212,18 +278,7 @@ export async function GET(request: NextRequest) {
       .lean();
 
     // Transform to frontend format
-    console.log(`Found ${bookings.length} bookings to transform`);
-    const transformedBookings = bookings.map((booking: any) => {
-      const transformed = transformBookingToResponse(booking);
-      return {
-        ...transformed,
-        guestData: booking.guest,
-        roomData: {
-          ...booking.room,
-          roomType: booking.room?.roomType?.name || "Unknown",
-        },
-      };
-    });
+    const transformedBookings: BookingResponse[] = bookings.map(transformBookingToResponse);
 
     // Calculate statistics
     const stats = await Booking.aggregate([
@@ -249,8 +304,7 @@ export async function GET(request: NextRequest) {
       revenue: 0,
     };
 
-    return NextResponse.json({
-      data: transformedBookings,
+    return createSuccessResponse(transformedBookings, {
       pagination: {
         page,
         limit,
@@ -268,21 +322,18 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Error fetching bookings:", error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return createErrorResponse(error.message, 400);
     }
-    return NextResponse.json(
-      { error: "Failed to fetch bookings" },
-      { status: 500 }
-    );
+    return createErrorResponse("Failed to fetch bookings");
   }
 }
 
 // POST /api/bookings - Create a new booking
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<BookingResponse>>> {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return createErrorResponse("Unauthorized", 401);
     }
 
     await dbConnect();
@@ -334,10 +385,7 @@ export async function POST(request: NextRequest) {
       rawBookingData.totalAmount || totalNights * rawBookingData.roomRate;
 
     if (totalNights <= 0) {
-      return NextResponse.json(
-        { error: "تاریخ خروج باید بعد از تاریخ ورود باشد" },
-        { status: 400 }
-      );
+      return createErrorResponse("Check-out date must be after check-in date", 400);
     }
 
     // Combine raw data with calculated fields
@@ -366,10 +414,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (conflictingBooking) {
-      return NextResponse.json(
-        { error: "اتاق در تاریخ‌های انتخاب شده در دسترس نیست" },
-        { status: 400 }
-      );
+      return createErrorResponse("Room is not available for the selected dates", 400);
     }
 
     // Create new booking
@@ -418,23 +463,21 @@ export async function POST(request: NextRequest) {
       })
       .lean();
 
+    if (!populatedBooking) {
+      return createErrorResponse("Failed to retrieve created booking", 500);
+    }
+
     const transformedBooking = transformBookingToResponse(populatedBooking);
 
-    return NextResponse.json(
-      {
-        data: transformedBooking,
-        message: "رزرو با موفقیت ایجاد شد",
-      },
-      { status: 201 }
-    );
+    return createSuccessResponse(transformedBooking, {
+      status: 201,
+      message: "Booking created successfully",
+    });
   } catch (error) {
     console.error("Error creating booking:", error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return createErrorResponse(error.message, 400);
     }
-    return NextResponse.json(
-      { error: "Failed to create booking" },
-      { status: 500 }
-    );
+    return createErrorResponse("Failed to create booking");
   }
 }

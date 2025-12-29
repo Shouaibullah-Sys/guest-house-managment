@@ -214,28 +214,28 @@ export default function DailyGuestsReportPage() {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("PDF generation failed:", response.status, errorText);
+        console.error("Excel generation failed:", response.status, errorText);
         throw new Error(`Failed to generate report: ${response.status}`);
       }
 
-      // Download the PDF
+      // Download the Excel file
       const blob = await response.blob();
 
-      // Check if we got a valid PDF
+      // Check if we got a valid Excel file
       if (blob.size === 0) {
-        throw new Error("Generated PDF is empty");
+        throw new Error("Generated Excel file is empty");
       }
 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `گزارش-میهمانان-${selectedDate}.pdf`;
+      a.download = `گزارش-میهمانان-${selectedDate}.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      console.log(`PDF downloaded successfully: ${blob.size} bytes`);
+      console.log(`Excel downloaded successfully: ${blob.size} bytes`);
     } catch (error) {
       console.error("Generate report error:", error);
       const errorMessage =
@@ -387,7 +387,7 @@ export default function DailyGuestsReportPage() {
             انتخاب تاریخ و تولید گزارش
           </CardTitle>
           <CardDescription>
-            تاریخ مورد نظر را انتخاب کرده و گزارش PDF تولید کنید
+            تاریخ مورد نظر را انتخاب کرده و گزارش Excel تولید کنید
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -413,7 +413,7 @@ export default function DailyGuestsReportPage() {
                 ) : (
                   <Download className="h-4 w-4 ml-2" />
                 )}
-                {isGenerating ? "در حال تولید..." : "دانلود گزارش PDF"}
+                {isGenerating ? "در حال تولید..." : "دانلود گزارش Excel"}
               </Button>
             </div>
           </div>
@@ -559,7 +559,7 @@ export default function DailyGuestsReportPage() {
                 <span className="text-sm text-muted-foreground">
                   نوع گزارش:
                 </span>
-                <Badge variant="outline">PDF</Badge>
+                <Badge variant="outline">Excel</Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">زبان:</span>
