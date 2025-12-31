@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
@@ -140,16 +140,17 @@ const fetchSalesData = async ({
   return response.json();
 };
 
-export default function AdminSalesPage() {
+// Main content component that uses useSearchParams
+function SalesContent() {
   const { theme, setTheme } = useTheme();
   const queryClient = useQueryClient();
   const { getToken } = useAuth();
   const searchParams = useSearchParams();
-  
+
   // Check for auto-select query parameters
-  const autoSelect = searchParams.get('autoSelect') === 'true';
-  const guestName = searchParams.get('guestName');
-  const bookingId = searchParams.get('bookingId');
+  const autoSelect = searchParams.get("autoSelect") === "true";
+  const guestName = searchParams.get("guestName");
+  const bookingId = searchParams.get("bookingId");
 
   // Authenticated fetch function
   const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
@@ -177,6 +178,7 @@ export default function AdminSalesPage() {
       throw error;
     }
   };
+
   const [isMobile, setIsMobile] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -232,36 +234,37 @@ export default function AdminSalesPage() {
       const customerRecord = salesData.data.find(
         (record) => record.customerName === guestName
       );
-      
+
       if (customerRecord) {
         // Set the selected customer
         setSelectedCustomer(customerRecord.normalizedName);
-        
+
         // Open payment dialog for the booking if available
         if (bookingId && !customerRecord.isFullyPaid) {
           // Find the specific booking record
           const bookingRecord = salesData.data.find(
-            (record) => 
+            (record) =>
               (record.bookingId === bookingId || record.id === bookingId) &&
               record.customerName === guestName
           );
-          
+
           if (bookingRecord && parseFloat(bookingRecord.outstanding) > 0) {
             // Calculate total outstanding for the customer for bulk payment
             const customerRecords = salesData.data.filter(
-              (record) => record.normalizedName === customerRecord.normalizedName
+              (record) =>
+                record.normalizedName === customerRecord.normalizedName
             );
-            
+
             const totalOutstanding = customerRecords.reduce((sum, record) => {
               return sum + parseFloat(record.outstanding || "0");
             }, 0);
-            
+
             // Open bulk payment dialog after a short delay to ensure UI is ready
             setTimeout(() => {
               openBulkPaymentDialog({
                 customerName: customerRecord.customerName,
                 normalizedName: customerRecord.normalizedName,
-                totalOutstanding: totalOutstanding
+                totalOutstanding: totalOutstanding,
               });
             }, 500);
           }
@@ -1700,5 +1703,23 @@ export default function AdminSalesPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// Main export with Suspense wrapper
+export default function AdminSalesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader
+            title="در حال بارگذاری صفحه فروش"
+            subtitle="لطفاً چند لحظه صبر کنید"
+          />
+        </div>
+      }
+    >
+      <SalesContent />
+    </Suspense>
   );
 }

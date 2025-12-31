@@ -22,8 +22,7 @@ const roomTypeSchema = new Schema<IRoomType>(
     bedType: String,
     viewType: {
       type: String,
-      enum: ["mountain", "city", "garden", "pool"],
-      default: "city",
+      default: "city view",
     },
     smokingAllowed: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
