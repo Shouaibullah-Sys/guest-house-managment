@@ -70,8 +70,8 @@ export default clerkMiddleware(async (auth, req) => {
   const metadata = sessionClaims?.metadata as
     | { role?: "guest" | "staff" | "admin"; approved?: boolean }
     | undefined;
-  const userRole = metadata?.role;
-  const isApproved = metadata?.approved;
+  let userRole = metadata?.role;
+  let isApproved = metadata?.approved;
   const pathname = new URL(req.url).pathname;
 
   // Validate role is one of the expected values
@@ -80,8 +80,12 @@ export default clerkMiddleware(async (auth, req) => {
 
   // Handle users without metadata (new signups)
   if (userId && !userRole) {
-    // For authenticated users without role, default to guest but allow access
-    console.log(`⚠️ User ${userId} has no role metadata, defaulting to guest`);
+    // For authenticated users without role, set defaults but don't do heavy operations
+    console.log(`⚠️ User ${userId} has no role metadata, using defaults`);
+
+    // Set default values to allow authentication to proceed
+    userRole = "guest";
+    isApproved = true;
   }
 
   // Debug logging

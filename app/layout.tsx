@@ -5,6 +5,7 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { QueryProvider } from "@/components/QueryProvider";
 import { Toaster } from "sonner";
+import { UserMetadataSync } from "@/components/UserMetadataSync";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -21,6 +22,7 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <QueryProvider>
+        <UserMetadataSync />
         <html lang="en">
           <body className={inter.className}>
             <div className="min-h-screen flex flex-col mb-48">
