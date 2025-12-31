@@ -1,6 +1,6 @@
 // app/api/hero-section/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { getAuth } from "@clerk/nextjs/server";
 import { HeroSection } from "@/models/HeroSection";
 import dbConnect from "@/lib/db";
 import { z } from "zod";
@@ -26,7 +26,7 @@ function transformHeroSectionToResponse(heroSection: any) {
 // GET /api/hero-section - List all hero sections
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth();
+    const { userId } = getAuth(request);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 // POST /api/hero-section - Create a new hero section
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
+    const { userId } = getAuth(request);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
