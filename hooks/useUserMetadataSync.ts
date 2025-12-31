@@ -28,7 +28,8 @@ export function useUserMetadataSync() {
           const data = await response.json();
           console.log("✅ User metadata synchronized:", data);
         } else {
-          console.error("❌ Failed to sync user metadata");
+          const errorData = await response.json();
+          console.error("❌ Failed to sync user metadata:", errorData);
         }
       } catch (error) {
         console.error("💥 Error syncing metadata:", error);
@@ -40,6 +41,8 @@ export function useUserMetadataSync() {
     if (!metadata?.role) {
       console.log("🔄 User has no role metadata, syncing...");
       syncMetadata();
+    } else {
+      console.log("✅ User already has role metadata:", metadata.role);
     }
   }, [user, isLoaded]);
 

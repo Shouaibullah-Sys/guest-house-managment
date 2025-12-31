@@ -6,6 +6,9 @@ import dbConnect from "@/lib/db";
 import { z } from "zod";
 import mongoose from "mongoose";
 
+// Import the utility function
+import { findOrCreateUser } from "@/lib/user-utils";
+
 // Types for better type safety
 type BookingResponse = {
   id: string;
@@ -343,42 +346,50 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<BookingResponse>>> {
   try {
+    console.log("📝 Booking creation request received");
+
     const { userId } = await auth();
     if (!userId) {
+      console.log("❌ Unauthorized: No user ID found");
       return createErrorResponse("Unauthorized", 401);
     }
 
+    console.log(`👤 Authenticated user ID: ${userId}`);
+
     await dbConnect();
 
-    // Ensure User model is registered with Mongoose
+    // Ensure all models are registered with Mongoose
     if (!mongoose.models.User) {
       await import("@/models/User");
     }
 
-    // Ensure Room model is registered with Mongoose
     if (!mongoose.models.Room) {
       await import("@/models/Room");
     }
 
-    // Ensure RoomType model is registered with Mongoose
     if (!mongoose.models.RoomType) {
       await import("@/models/RoomType");
     }
 
     const body = await request.json();
+    console.log("📦 Request body received:", JSON.stringify(body, null, 2));
 
-    // Basic booking validation (excluding calculated fields)
+    // First, find or create the user in the database
+    console.log(`🔍 Finding or creating user: ${userId}`);
+    const user = await findOrCreateUser(userId);
+    console.log(`✅ User resolved: ${user.name} (${user._id})`);
+
+    // Basic booking validation
     const bookingSchema = z.object({
-      guest: z.string(), // Clerk user ID or guest ID
       room: z.string(), // Room ID
       checkInDate: z.string(),
       checkOutDate: z.string(),
       adults: z.number().min(1),
       children: z.number().min(0).default(0),
       infants: z.number().min(0).default(0),
-      totalNights: z.number().min(1).optional(), // Will be calculated if not provided
+      totalNights: z.number().min(1).optional(),
       roomRate: z.number().min(0),
-      totalAmount: z.number().min(0).optional(), // Will be calculated if not provided
+      totalAmount: z.number().min(0).optional(),
       status: z.string().optional(),
       source: z.string().optional(),
       specialRequests: z.string().optional(),
@@ -397,6 +408,7 @@ export async function POST(
       rawBookingData.totalAmount || totalNights * rawBookingData.roomRate;
 
     if (totalNights <= 0) {
+      console.log("❌ Invalid dates: check-out must be after check-in");
       return createErrorResponse(
         "Check-out date must be after check-in date",
         400
@@ -410,13 +422,18 @@ export async function POST(
       totalAmount,
     };
 
+    console.log(`📅 Booking details: ${totalNights} nights, $${totalAmount}`);
+
     // Generate booking number
     const bookingNumber = `BKG-${Date.now()}-${Math.random()
       .toString(36)
       .substr(2, 5)
       .toUpperCase()}`;
 
+    console.log(`🎫 Generated booking number: ${bookingNumber}`);
+
     // Check room availability
+    console.log(`🔍 Checking availability for room: ${bookingData.room}`);
     const conflictingBooking = await Booking.findOne({
       room: bookingData.room,
       status: { $in: ["confirmed", "checked_in"] },
@@ -429,16 +446,19 @@ export async function POST(
     });
 
     if (conflictingBooking) {
+      console.log("❌ Room not available for selected dates");
       return createErrorResponse(
         "Room is not available for the selected dates",
         400
       );
     }
 
-    // Create new booking
+    console.log("✅ Room is available, creating booking...");
+
+    // Create new booking with the database user ID
     const newBooking = new Booking({
       bookingNumber,
-      guest: bookingData.guest,
+      guest: user._id, // Use the database user ID from findOrCreateUser
       room: bookingData.room,
       checkInDate: new Date(bookingData.checkInDate),
       checkOutDate: new Date(bookingData.checkOutDate),
@@ -452,12 +472,13 @@ export async function POST(
       outstandingAmount: bookingData.totalAmount,
       status: bookingData.status || "pending",
       paymentStatus: "pending",
-      specialRequests: bookingData.specialRequests,
-      notes: bookingData.notes,
+      specialRequests: bookingData.specialRequests || "",
+      notes: bookingData.notes || "",
       createdBy: userId,
     });
 
     await newBooking.save();
+    console.log(`✅ Booking created successfully: ${newBooking._id}`);
 
     // Populate the created booking for response
     const populatedBooking = await Booking.findById(newBooking._id)
@@ -482,20 +503,43 @@ export async function POST(
       .lean();
 
     if (!populatedBooking) {
+      console.log("❌ Failed to retrieve created booking");
       return createErrorResponse("Failed to retrieve created booking", 500);
     }
 
     const transformedBooking = transformBookingToResponse(populatedBooking);
+
+    console.log("🎉 Booking creation completed successfully");
 
     return createSuccessResponse(transformedBooking, {
       status: 201,
       message: "Booking created successfully",
     });
   } catch (error) {
-    console.error("Error creating booking:", error);
+    console.error("💥 Error creating booking:", error);
+
     if (error instanceof z.ZodError) {
-      return createErrorResponse(error.message, 400);
+      console.error("Validation error:", error.message);
+      return createErrorResponse("Invalid booking data: " + error.message, 400);
     }
-    return createErrorResponse("Failed to create booking");
+
+    if (error instanceof mongoose.Error.ValidationError) {
+      console.error("Mongoose validation error:", error.message);
+      return createErrorResponse(
+        "Database validation error: " + error.message,
+        400
+      );
+    }
+
+    if (error instanceof mongoose.Error.CastError) {
+      console.error("Mongoose cast error:", error.message);
+      return createErrorResponse("Invalid data format: " + error.message, 400);
+    }
+
+    return createErrorResponse(
+      error instanceof Error
+        ? `Failed to create booking: ${error.message}`
+        : "Failed to create booking"
+    );
   }
 }

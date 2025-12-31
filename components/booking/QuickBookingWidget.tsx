@@ -236,6 +236,29 @@ export default function QuickBookingWidget() {
     setSelectedRoom(room);
 
     try {
+      // Ensure user is synced to database before proceeding
+      console.log("🔄 Syncing user to database before booking...");
+      const syncResponse = await authenticatedFetch(
+        "/api/auth/sync-user-metadata",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!syncResponse.ok) {
+        const syncError = await syncResponse.json();
+        console.error("❌ User sync failed:", syncError);
+        throw new Error(
+          "Failed to sync user data. Please try signing out and back in."
+        );
+      }
+
+      const syncResult = await syncResponse.json();
+      console.log("✅ User synced successfully:", syncResult);
+
       // Check user's existing guest information
       const { missingFields, existingData } = await checkUserGuestInfo();
 
@@ -252,7 +275,11 @@ export default function QuickBookingWidget() {
       await proceedToCheckout(room, existingData || {});
     } catch (error) {
       console.error("Error processing booking:", error);
-      toast.error("Failed to process booking. Please try again.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to process booking. Please try again."
+      );
       setIsBooking(false);
     }
   };

@@ -711,19 +711,6 @@ function AdminBookingsContent() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="hidden sm:flex"
-            >
-              {theme === "dark" ? (
-                <Sun className="h-4 w-4 ml-2" />
-              ) : (
-                <Moon className="h-4 w-4 ml-2" />
-              )}
-              تغییر تم
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
               onClick={handleRefresh}
               disabled={isRefreshing}
             >
@@ -738,7 +725,6 @@ function AdminBookingsContent() {
             </Button>
           </div>
         </div>
-
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">

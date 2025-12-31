@@ -148,41 +148,76 @@ function CheckoutContent() {
     return basePrice * nights;
   };
 
+  // Sync user metadata to database before creating booking
+  const syncUserToDatabase = async () => {
+    try {
+      const response = await fetch("/api/auth/sync-user-metadata", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("User sync failed:", errorData);
+        throw new Error(errorData.error || "Failed to sync user data");
+      }
+
+      const syncResult = await response.json();
+      console.log("✅ User synced to database:", syncResult);
+      return true;
+    } catch (error) {
+      console.error("❌ Error syncing user:", error);
+      throw new Error(
+        error instanceof Error ? error.message : "Failed to sync user data"
+      );
+    }
+  };
+
   const createBooking = async () => {
     if (!bookingData || !userId) return null;
 
-    const response = await fetch("/api/bookings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        guest: userId,
-        room: bookingData.room.id,
-        checkInDate: bookingData.dates.checkIn,
-        checkOutDate: bookingData.dates.checkOut,
-        adults: bookingData.dates.guests,
-        children: 0,
-        infants: 0,
-        totalNights: calculateNights(),
-        roomRate: bookingData.room.roomType.basePrice,
-        totalAmount: calculateTotal(),
-        status: "confirmed",
-        source: "quick_booking",
-        specialRequests: "",
-        notes: `Booking created via Quick Booking Widget for ${
-          bookingData.guestInfo?.name || "logged in user"
-        }`,
-      }),
-    });
+    try {
+      // Remove the manual sync call since it's now handled in the booking API
+      // Just call the booking API directly
+      const response = await fetch("/api/bookings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          room: bookingData.room.id,
+          checkInDate: bookingData.dates.checkIn,
+          checkOutDate: bookingData.dates.checkOut,
+          adults: bookingData.dates.guests,
+          children: 0,
+          infants: 0,
+          totalNights: calculateNights(),
+          roomRate: bookingData.room.roomType.basePrice,
+          totalAmount: calculateTotal(),
+          status: "confirmed",
+          source: "quick_booking",
+          specialRequests: "",
+          notes: `Booking created via Quick Booking Widget for ${
+            bookingData.guestInfo?.name || "logged in user"
+          }`,
+        }),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.error || "Failed to create booking");
+      if (!response.ok) {
+        console.error("Booking creation failed:", data);
+        throw new Error(data.error || "Failed to create booking");
+      }
+
+      console.log("✅ Booking created successfully:", data);
+      return data.data.id;
+    } catch (error) {
+      console.error("❌ Booking creation error:", error);
+      throw error;
     }
-
-    return data.data.id;
   };
 
   const handleCashPayment = async () => {
@@ -191,6 +226,10 @@ function CheckoutContent() {
     try {
       setIsProcessing(true);
       const newBookingId = await createBooking();
+
+      if (!newBookingId) {
+        throw new Error("Failed to create booking");
+      }
 
       // Store success data for popup
       const successData = {
@@ -214,9 +253,19 @@ function CheckoutContent() {
       }, 2000); // 2 second delay
     } catch (error) {
       console.error("Cash booking error:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to confirm booking"
-      );
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to confirm booking";
+
+      // Show specific error messages
+      if (errorMessage.includes("sync")) {
+        toast.error(
+          "Account setup failed. Please try signing out and signing back in."
+        );
+      } else if (errorMessage.includes("Unauthorized")) {
+        toast.error("Authentication error. Please sign in again.");
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -230,6 +279,11 @@ function CheckoutContent() {
     try {
       setIsProcessing(true);
       const newBookingId = await createBooking();
+
+      if (!newBookingId) {
+        throw new Error("Failed to create booking");
+      }
+
       setBookingId(newBookingId);
 
       // Create Stripe payment intent
@@ -257,11 +311,21 @@ function CheckoutContent() {
       setStripeClientSecret(data.clientSecret);
     } catch (error) {
       console.error("Stripe payment setup error:", error);
-      toast.error(
+      const errorMessage =
         error instanceof Error
           ? error.message
-          : "Failed to setup Stripe payment"
-      );
+          : "Failed to setup Stripe payment";
+
+      // Show specific error messages
+      if (errorMessage.includes("sync")) {
+        toast.error(
+          "Account setup failed. Please try signing out and signing back in."
+        );
+      } else if (errorMessage.includes("Unauthorized")) {
+        toast.error("Authentication error. Please sign in again.");
+      } else {
+        toast.error(errorMessage);
+      }
       setIsProcessing(false);
     }
   };
@@ -270,6 +334,13 @@ function CheckoutContent() {
     if (!bookingData) return;
 
     try {
+      // For bank payments, we need to create the booking first
+      const newBookingId = await createBooking();
+
+      if (!newBookingId) {
+        throw new Error("Failed to create booking");
+      }
+
       // Store success data for popup
       const successData = {
         paymentMethod: "bank" as PaymentMethod,
@@ -292,7 +363,19 @@ function CheckoutContent() {
       }, 2000); // 2 second delay
     } catch (error) {
       console.error("Bank payment error:", error);
-      toast.error("Failed to complete booking");
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to complete booking";
+
+      // Show specific error messages
+      if (errorMessage.includes("sync")) {
+        toast.error(
+          "Account setup failed. Please try signing out and signing back in."
+        );
+      } else if (errorMessage.includes("Unauthorized")) {
+        toast.error("Authentication error. Please sign in again.");
+      } else {
+        toast.error(errorMessage);
+      }
     }
   };
 
