@@ -28,6 +28,9 @@ import {
   Star,
   Package,
   HelpCircle,
+  Home,
+  BarChart3,
+  Building2,
 } from "lucide-react";
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 import { BookingItem } from "@/types/booking";
@@ -61,6 +64,7 @@ function Header({
   const [isBookingCartOpen, setIsBookingCartOpen] = useState(false);
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
   const [showLoginOptions, setShowLoginOptions] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Clerk user hook
   const { user, isLoaded: isUserLoaded, isSignedIn } = useUser();
@@ -180,6 +184,15 @@ function Header({
     setIsUserProfileOpen(false);
     setShowLoginOptions(false);
     router.push("/sign-up");
+  };
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  // Close mobile menu when clicking on navigation items
+  const handleMobileNavClick = () => {
+    setIsMobileMenuOpen(false);
   };
 
   return (
@@ -399,9 +412,14 @@ function Header({
                 data-testid="mobile-menu-button"
                 whileHover={{ scale: 1.1, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
+                onClick={toggleMobileMenu}
                 className="lg:hidden text-gray-300 hover:text-amber-400 transition-colors will-change-transform"
               >
-                <Menu className="h-6 w-6" />
+                {isMobileMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
               </motion.button>
             </div>
           </div>
@@ -417,6 +435,143 @@ function Header({
           )}
         </div>
       </motion.header>
+
+      {/* Mobile Menu */}
+      {isMobileMenuOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.2 }}
+          className="lg:hidden fixed top-20 left-0 right-0 z-40 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700"
+        >
+          <div className="container mx-auto px-4 py-6">
+            <nav className="space-y-4">
+              {navigationItems.map((item, index) => {
+                const scrollToSection = () => {
+                  const section = document.getElementById(item.id);
+                  if (section) {
+                    const headerHeight = 80;
+                    const offset = section.offsetTop - headerHeight;
+                    window.scrollTo({ top: offset, behavior: "smooth" });
+                    handleMobileNavClick();
+                  }
+                };
+
+                return (
+                  <motion.button
+                    key={item.id}
+                    onClick={scrollToSection}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="w-full flex items-center gap-3 p-4 rounded-xl bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700/50 text-white font-medium transition-all duration-300 group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/20 flex items-center justify-center group-hover:from-amber-500/30 group-hover:to-amber-600/30 transition-all">
+                      {item.name === "Home" && (
+                        <Home className="h-4 w-4 text-amber-400" />
+                      )}
+                      {item.name === "Stats" && (
+                        <BarChart3 className="h-4 w-4 text-amber-400" />
+                      )}
+                      {item.name === "Hotels" && (
+                        <Building2 className="h-4 w-4 text-amber-400" />
+                      )}
+                      {item.name === "Amenities" && (
+                        <Sparkles className="h-4 w-4 text-amber-400" />
+                      )}
+                      {item.name === "Testimonials" && (
+                        <Star className="h-4 w-4 text-amber-400" />
+                      )}
+                      {item.name === "Reservation" && (
+                        <Calendar className="h-4 w-4 text-amber-400" />
+                      )}
+                      {item.name === "Contact" && (
+                        <PhoneIcon className="h-4 w-4 text-amber-400" />
+                      )}
+                    </div>
+                    <span className="text-lg">{item.name}</span>
+                    <motion.div
+                      className="ml-auto w-2 h-2 rounded-full bg-amber-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                      transition={{ duration: 0.2 }}
+                    />
+                  </motion.button>
+                );
+              })}
+            </nav>
+
+            {/* Mobile Menu Actions */}
+            <div className="mt-6 pt-6 border-t border-gray-700/50 space-y-4">
+              {/* Quick Book Button */}
+              <motion.button
+                onClick={() => {
+                  scrollToBooking();
+                  handleMobileNavClick();
+                }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full flex items-center justify-center gap-3 p-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold transition-all duration-300 shadow-lg shadow-amber-500/25"
+              >
+                <Sparkles className="h-5 w-5" />
+                <span className="text-lg">Quick Book Now</span>
+              </motion.button>
+
+              {/* Admin Button for Admin Users */}
+              {isUserLoaded &&
+                isSignedIn &&
+                user &&
+                user.publicMetadata?.role === "admin" && (
+                  <motion.button
+                    onClick={() => {
+                      router.push("/admin");
+                      handleMobileNavClick();
+                    }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full flex items-center justify-center gap-3 p-4 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold transition-all duration-300 shadow-lg shadow-red-500/25"
+                  >
+                    <Shield className="h-5 w-5" />
+                    <span className="text-lg">Admin Panel</span>
+                  </motion.button>
+                )}
+
+              {/* Booking Cart Button (if items exist) */}
+              {bookingItems.length > 0 && (
+                <motion.button
+                  onClick={() => {
+                    setIsBookingCartOpen(true);
+                    handleMobileNavClick();
+                  }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full flex items-center justify-between p-4 rounded-xl bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700/50 text-white font-medium transition-all duration-300"
+                >
+                  <div className="flex items-center gap-3">
+                    <Calendar className="h-5 w-5 text-blue-400" />
+                    <span className="text-lg">My Bookings</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-amber-500 text-white text-sm rounded-full w-6 h-6 flex items-center justify-center">
+                      {bookingItems.length}
+                    </span>
+                    <span className="text-amber-400 font-semibold">
+                      {bookingTotal}
+                    </span>
+                  </div>
+                </motion.button>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/50 z-30"
+          onClick={toggleMobileMenu}
+        />
+      )}
 
       {/* User Profile Dialog */}
       <Dialog

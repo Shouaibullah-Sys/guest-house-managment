@@ -106,28 +106,34 @@ function transformBookingToResponse(booking: any): BookingResponse {
 }
 
 // Helper function for consistent error responses
-function createErrorResponse(message: string, status: number = 500): NextResponse<ApiResponse<never>> {
+function createErrorResponse(
+  message: string,
+  status: number = 500
+): NextResponse<ApiResponse<never>> {
   return NextResponse.json(
     { error: message },
-    { 
+    {
       status,
       headers: {
-        'Cache-Control': 'no-store'
-      }
+        "Cache-Control": "no-store",
+      },
     }
   );
 }
 
 // Helper function for consistent success responses
-function createSuccessResponse<T>(data: T, options?: {
-  status?: number;
-  headers?: Record<string, string>;
-  message?: string;
-  pagination?: ApiResponse<T>['pagination'];
-  stats?: ApiResponse<T>['stats'];
-}): NextResponse<ApiResponse<T>> {
+function createSuccessResponse<T>(
+  data: T,
+  options?: {
+    status?: number;
+    headers?: Record<string, string>;
+    message?: string;
+    pagination?: ApiResponse<T>["pagination"];
+    stats?: ApiResponse<T>["stats"];
+  }
+): NextResponse<ApiResponse<T>> {
   const response: ApiResponse<T> = { data };
-  
+
   if (options?.message) response.message = options.message;
   if (options?.pagination) response.pagination = options.pagination;
   if (options?.stats) response.stats = options.stats;
@@ -135,14 +141,16 @@ function createSuccessResponse<T>(data: T, options?: {
   return NextResponse.json(response, {
     status: options?.status || 200,
     headers: {
-      'Cache-Control': 'private, max-age=60', // Cache for 1 minute
-      ...options?.headers
-    }
+      "Cache-Control": "private, max-age=60", // Cache for 1 minute
+      ...options?.headers,
+    },
   });
 }
 
 // GET /api/bookings - List bookings with search and filtering
-export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<BookingResponse[]>>> {
+export async function GET(
+  request: NextRequest
+): Promise<NextResponse<ApiResponse<BookingResponse[]>>> {
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -278,7 +286,9 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       .lean();
 
     // Transform to frontend format
-    const transformedBookings: BookingResponse[] = bookings.map(transformBookingToResponse);
+    const transformedBookings: BookingResponse[] = bookings.map(
+      transformBookingToResponse
+    );
 
     // Calculate statistics
     const stats = await Booking.aggregate([
@@ -329,7 +339,9 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
 }
 
 // POST /api/bookings - Create a new booking
-export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<BookingResponse>>> {
+export async function POST(
+  request: NextRequest
+): Promise<NextResponse<ApiResponse<BookingResponse>>> {
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -385,7 +397,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       rawBookingData.totalAmount || totalNights * rawBookingData.roomRate;
 
     if (totalNights <= 0) {
-      return createErrorResponse("Check-out date must be after check-in date", 400);
+      return createErrorResponse(
+        "Check-out date must be after check-in date",
+        400
+      );
     }
 
     // Combine raw data with calculated fields
@@ -414,7 +429,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     });
 
     if (conflictingBooking) {
-      return createErrorResponse("Room is not available for the selected dates", 400);
+      return createErrorResponse(
+        "Room is not available for the selected dates",
+        400
+      );
     }
 
     // Create new booking
@@ -432,7 +450,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       totalAmount: bookingData.totalAmount,
       paidAmount: 0,
       outstandingAmount: bookingData.totalAmount,
-      status: "pending",
+      status: bookingData.status || "pending",
       paymentStatus: "pending",
       specialRequests: bookingData.specialRequests,
       notes: bookingData.notes,
