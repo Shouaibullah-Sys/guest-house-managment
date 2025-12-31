@@ -1,5 +1,4 @@
 // lib/pdf-generator.tsx
-import ExcelJS from "exceljs";
 
 // Types
 export interface Doctor {
@@ -63,9 +62,11 @@ export class LabReportExcel {
   private static readonly LIGHT_GRAY = "FF95A5A6";
   private static readonly DARK_COLOR = "FF2C3E50";
 
-  static generateReport(test: LaboratoryTestWithDetails): ExcelJS.Workbook {
-    const workbook = new ExcelJS.Workbook();
-    
+  static generateReport(test: LaboratoryTestWithDetails): any {
+    // Dynamic import for ExcelJS to avoid server-side rendering issues
+    const ExcelJS = require("exceljs");
+    const workbook = new (ExcelJS as any).Workbook();
+
     // Set workbook properties
     workbook.creator = "Lab Report System";
     workbook.lastModifiedBy = "Lab Report System";
@@ -87,18 +88,30 @@ export class LabReportExcel {
     return workbook;
   }
 
-  private static addSummarySheet(sheet: ExcelJS.Worksheet, test: LaboratoryTestWithDetails): void {
+  private static addSummarySheet(
+    sheet: any,
+    test: LaboratoryTestWithDetails
+  ): void {
     // Title
     sheet.mergeCells("A1:F2");
     const titleCell = sheet.getCell("A1");
-    titleCell.value = this.ensureAscii(`${test.laboratoryName || "Advanced Medical Laboratory"} - Laboratory Test Report`);
+    titleCell.value = this.ensureAscii(
+      `${
+        test.laboratoryName || "Advanced Medical Laboratory"
+      } - Laboratory Test Report`
+    );
     titleCell.font = { size: 16, bold: true, color: { argb: "FFFFFFFF" } };
-    titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: this.HEADER_COLOR } };
+    titleCell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: this.HEADER_COLOR },
+    };
     titleCell.alignment = { horizontal: "center", vertical: "middle" };
     sheet.getRow(1).height = 30;
 
     // Report Information
-    const reportId = test.reportId || `LAB-${test.id}-${this.generateUniqueId()}`;
+    const reportId =
+      test.reportId || `LAB-${test.id}-${this.generateUniqueId()}`;
     const generatedDate = new Date().toLocaleString("en-US", {
       year: "numeric",
       month: "short",
@@ -108,8 +121,12 @@ export class LabReportExcel {
     });
 
     sheet.getCell("A4").value = "Report Information";
-    sheet.getCell("A4").font = { size: 12, bold: true, color: { argb: this.HEADER_COLOR } };
-    
+    sheet.getCell("A4").font = {
+      size: 12,
+      bold: true,
+      color: { argb: this.HEADER_COLOR },
+    };
+
     const reportData = [
       ["Report ID:", reportId],
       ["Accession Number:", `ACC-${test.id}-${new Date().getFullYear()}`],
@@ -126,15 +143,34 @@ export class LabReportExcel {
 
     // Patient Information Section
     sheet.getCell("D4").value = "Patient Information";
-    sheet.getCell("D4").font = { size: 12, bold: true, color: { argb: this.INFO_COLOR } };
+    sheet.getCell("D4").font = {
+      size: 12,
+      bold: true,
+      color: { argb: this.INFO_COLOR },
+    };
 
     if (test.patient) {
       const patient = test.patient;
       const patientData = [
-        ["Patient Name:", `${patient.firstName} ${patient.middleName || ""} ${patient.lastName}`.trim()],
+        [
+          "Patient Name:",
+          `${patient.firstName} ${patient.middleName || ""} ${
+            patient.lastName
+          }`.trim(),
+        ],
         ["Patient ID:", `PAT-${patient.id}`],
-        ["Date of Birth:", patient.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString() : "Not provided"],
-        ["Age:", patient.dateOfBirth ? `${this.calculateAge(patient.dateOfBirth)} years` : "Not provided"],
+        [
+          "Date of Birth:",
+          patient.dateOfBirth
+            ? new Date(patient.dateOfBirth).toLocaleDateString()
+            : "Not provided",
+        ],
+        [
+          "Age:",
+          patient.dateOfBirth
+            ? `${this.calculateAge(patient.dateOfBirth)} years`
+            : "Not provided",
+        ],
         ["Gender:", patient.gender || "Not provided"],
         ["Phone Number:", patient.phoneNumber || "Not provided"],
         ["Insurance Provider:", patient.insuranceProvider || "Not provided"],
@@ -149,7 +185,11 @@ export class LabReportExcel {
 
     // Test Information Section
     sheet.getCell("A14").value = "Test Information";
-    sheet.getCell("A14").font = { size: 12, bold: true, color: { argb: this.SUCCESS_COLOR } };
+    sheet.getCell("A14").font = {
+      size: 12,
+      bold: true,
+      color: { argb: this.SUCCESS_COLOR },
+    };
 
     const testData = [
       ["Test Name:", test.testName],
@@ -169,16 +209,38 @@ export class LabReportExcel {
 
     // Timeline Information
     sheet.getCell("D14").value = "Processing Timeline";
-    sheet.getCell("D14").font = { size: 12, bold: true, color: { argb: this.ACCENT_COLOR } };
+    sheet.getCell("D14").font = {
+      size: 12,
+      bold: true,
+      color: { argb: this.ACCENT_COLOR },
+    };
 
     const timeline = [
-      ["Collection Time:", new Date(test.testDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})],
-      ["Received:", test.receivedDate 
-        ? new Date(test.receivedDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-        : "Pending"],
-      ["Completed:", test.completedDate 
-        ? new Date(test.completedDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-        : "In Progress"],
+      [
+        "Collection Time:",
+        new Date(test.testDate).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      ],
+      [
+        "Received:",
+        test.receivedDate
+          ? new Date(test.receivedDate).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "Pending",
+      ],
+      [
+        "Completed:",
+        test.completedDate
+          ? new Date(test.completedDate).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "In Progress",
+      ],
       ["Turnaround Time:", this.getTurnaroundTime(test)],
       ["Technician:", test.technician || "Certified Tech"],
       ["Method:", this.getTestMethodology(test.testType).split(" - ")[0]],
@@ -207,22 +269,40 @@ export class LabReportExcel {
     this.addBorders(sheet, "D14:E19");
   }
 
-  private static addResultsSheet(sheet: ExcelJS.Worksheet, test: LaboratoryTestWithDetails): void {
+  private static addResultsSheet(
+    sheet: any,
+    test: LaboratoryTestWithDetails
+  ): void {
     // Title
     sheet.mergeCells("A1:F1");
     const titleCell = sheet.getCell("A1");
     titleCell.value = "Laboratory Results & Analysis";
     titleCell.font = { size: 14, bold: true, color: { argb: "FFFFFFFF" } };
-    titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: this.DARK_COLOR } };
+    titleCell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: this.DARK_COLOR },
+    };
     titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
     // Headers
-    const headers = ["ANALYTE", "RESULT", "UNITS", "REFERENCE RANGE", "FLAGS", "STATUS"];
+    const headers = [
+      "ANALYTE",
+      "RESULT",
+      "UNITS",
+      "REFERENCE RANGE",
+      "FLAGS",
+      "STATUS",
+    ];
     headers.forEach((header, index) => {
       const cell = sheet.getCell(3, index + 1);
       cell.value = header;
       cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: this.DARK_COLOR } };
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: this.DARK_COLOR },
+      };
       cell.alignment = { horizontal: "center" };
       cell.border = {
         top: { style: "thin" },
@@ -238,15 +318,17 @@ export class LabReportExcel {
       result.forEach((value, colIndex) => {
         const cell = sheet.getCell(rowIndex + 4, colIndex + 1);
         cell.value = value;
-        
+
         // Apply formatting based on status and flags
-        if (colIndex === 4) { // Flags column
+        if (colIndex === 4) {
+          // Flags column
           if (value === "HIGH" || value === "LOW") {
             cell.font = { bold: true, color: { argb: this.WARNING_COLOR } };
           } else if (value === "CRITICAL") {
             cell.font = { bold: true, color: { argb: this.DANGER_COLOR } };
           }
-        } else if (colIndex === 5) { // Status column
+        } else if (colIndex === 5) {
+          // Status column
           if (value === "NORMAL") {
             cell.font = { bold: true, color: { argb: this.SUCCESS_COLOR } };
           } else if (value === "ABNORMAL") {
@@ -255,7 +337,7 @@ export class LabReportExcel {
             cell.font = { bold: true, color: { argb: this.DANGER_COLOR } };
           }
         }
-        
+
         cell.border = {
           top: { style: "thin" },
           left: { style: "thin" },
@@ -268,12 +350,16 @@ export class LabReportExcel {
     // Results Summary
     const summaryRow = results.length + 6;
     sheet.getCell(summaryRow, 1).value = "RESULTS SUMMARY:";
-    sheet.getCell(summaryRow, 1).font = { size: 12, bold: true, color: { argb: this.HEADER_COLOR } };
+    sheet.getCell(summaryRow, 1).font = {
+      size: 12,
+      bold: true,
+      color: { argb: this.HEADER_COLOR },
+    };
 
     const totalTests = results.length;
-    const normalCount = results.filter(r => r[5] === "NORMAL").length;
-    const abnormalCount = results.filter(r => r[5] === "ABNORMAL").length;
-    const criticalCount = results.filter(r => r[5] === "CRITICAL").length;
+    const normalCount = results.filter((r) => r[5] === "NORMAL").length;
+    const abnormalCount = results.filter((r) => r[5] === "ABNORMAL").length;
+    const criticalCount = results.filter((r) => r[5] === "CRITICAL").length;
 
     const summaryData = [
       ["Total Tests:", totalTests],
@@ -299,26 +385,43 @@ export class LabReportExcel {
     ];
   }
 
-  private static addInterpretationSheet(sheet: ExcelJS.Worksheet, test: LaboratoryTestWithDetails): void {
+  private static addInterpretationSheet(
+    sheet: any,
+    test: LaboratoryTestWithDetails
+  ): void {
     // Title
     sheet.mergeCells("A1:D1");
     const titleCell = sheet.getCell("A1");
     titleCell.value = "Clinical Interpretation & Recommendations";
     titleCell.font = { size: 14, bold: true, color: { argb: "FFFFFFFF" } };
-    titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: this.INFO_COLOR } };
+    titleCell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: this.INFO_COLOR },
+    };
     titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
     // Clinical Information Section
     sheet.getCell("A3").value = "Clinical Information";
-    sheet.getCell("A3").font = { size: 12, bold: true, color: { argb: this.INFO_COLOR } };
+    sheet.getCell("A3").font = {
+      size: 12,
+      bold: true,
+      color: { argb: this.INFO_COLOR },
+    };
 
     const clinicalData = [
-      ["Referring Physician:", test.doctor ? `Dr. ${test.doctor.name}` : "Not specified"],
+      [
+        "Referring Physician:",
+        test.doctor ? `Dr. ${test.doctor.name}` : "Not specified",
+      ],
       ["Specialization:", test.doctor?.specialization || "General Practice"],
       ["Clinical History:", test.clinicalHistory || "Routine screening"],
       ["Presenting Symptoms:", test.symptoms || "Asymptomatic"],
       ["Current Medications:", test.currentMedications || "None reported"],
-      ["Fasting Status:", test.fastingRequired ? "Fasting (≥8h)" : "Non-fasting"],
+      [
+        "Fasting Status:",
+        test.fastingRequired ? "Fasting (≥8h)" : "Non-fasting",
+      ],
     ];
 
     clinicalData.forEach((row, index) => {
@@ -329,14 +432,21 @@ export class LabReportExcel {
 
     // Specimen Information
     sheet.getCell("D3").value = "Specimen Information";
-    sheet.getCell("D3").font = { size: 12, bold: true, color: { argb: this.SUCCESS_COLOR } };
+    sheet.getCell("D3").font = {
+      size: 12,
+      bold: true,
+      color: { argb: this.SUCCESS_COLOR },
+    };
 
     const specimenData = [
       ["Specimen Type:", this.getSpecimenType(test.testType)],
       ["Container:", this.getSampleContainer(test.testType)],
       ["Volume:", this.getSampleVolume(test.testType)],
       ["Stability:", this.getSampleStability(test.testType)],
-      ["Special Instructions:", test.specialInstructions || "Standard procedure"],
+      [
+        "Special Instructions:",
+        test.specialInstructions || "Standard procedure",
+      ],
       ["Clinical Notes:", test.notes || "No additional notes"],
     ];
 
@@ -348,8 +458,12 @@ export class LabReportExcel {
 
     // Interpretation Section
     sheet.getCell("A13").value = "Clinical Interpretation:";
-    sheet.getCell("A13").font = { size: 12, bold: true, color: { argb: this.ACCENT_COLOR } };
-    
+    sheet.getCell("A13").font = {
+      size: 12,
+      bold: true,
+      color: { argb: this.ACCENT_COLOR },
+    };
+
     const interpretation = this.generateDetailedInterpretation(test);
     const interpretationLines = this.wrapText(interpretation, 80);
     interpretationLines.forEach((line, index) => {
@@ -359,8 +473,12 @@ export class LabReportExcel {
     // Recommendations Section
     const recommendationsRow = interpretationLines.length + 17;
     sheet.getCell(`A${recommendationsRow}`).value = "Clinical Recommendations:";
-    sheet.getCell(`A${recommendationsRow}`).font = { size: 12, bold: true, color: { argb: this.SUCCESS_COLOR } };
-    
+    sheet.getCell(`A${recommendationsRow}`).font = {
+      size: 12,
+      bold: true,
+      color: { argb: this.SUCCESS_COLOR },
+    };
+
     const recommendations = this.generateClinicalRecommendations(test);
     const recommendationLines = this.wrapText(recommendations, 80);
     recommendationLines.forEach((line, index) => {
@@ -377,25 +495,40 @@ export class LabReportExcel {
     ];
   }
 
-  private static addQualitySheet(sheet: ExcelJS.Worksheet, test: LaboratoryTestWithDetails): void {
+  private static addQualitySheet(
+    sheet: any,
+    test: LaboratoryTestWithDetails
+  ): void {
     // Title
     sheet.mergeCells("A1:C1");
     const titleCell = sheet.getCell("A1");
     titleCell.value = "Quality Assurance & Technical Data";
     titleCell.font = { size: 14, bold: true, color: { argb: "FFFFFFFF" } };
-    titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: this.LIGHT_GRAY } };
+    titleCell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: this.LIGHT_GRAY },
+    };
     titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
     // Quality Control Section
     sheet.getCell("A3").value = "Quality Control";
-    sheet.getCell("A3").font = { size: 12, bold: true, color: { argb: this.HEADER_COLOR } };
+    sheet.getCell("A3").font = {
+      size: 12,
+      bold: true,
+      color: { argb: this.HEADER_COLOR },
+    };
 
     const qcHeaders = ["Component", "Status", "Details"];
     qcHeaders.forEach((header, index) => {
       const cell = sheet.getCell(4, index + 1);
       cell.value = header;
       cell.font = { bold: true };
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8F9FA" } };
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFF8F9FA" },
+      };
       cell.border = {
         top: { style: "thin" },
         left: { style: "thin" },
@@ -430,7 +563,11 @@ export class LabReportExcel {
 
     // Technical Specifications Section
     sheet.getCell("A12").value = "Technical Specifications";
-    sheet.getCell("A12").font = { size: 12, bold: true, color: { argb: this.INFO_COLOR } };
+    sheet.getCell("A12").font = {
+      size: 12,
+      bold: true,
+      color: { argb: this.INFO_COLOR },
+    };
 
     const techData = [
       ["Method:", this.getMethodPrinciple(test.testType)],
@@ -448,21 +585,31 @@ export class LabReportExcel {
 
     // Footer information
     const footerRow = Math.max(techData.length + 16, qcData.length + 7);
-    sheet.getCell(`A${footerRow}`).value = `© ${new Date().getFullYear()} ${test.laboratoryName || "Advanced Medical Laboratory"}`;
-    sheet.getCell(`A${footerRow}`).font = { italic: true, color: { argb: this.LIGHT_GRAY } };
-    
-    sheet.getCell(`A${footerRow + 1}`).value = `Report ID: ${test.reportId || `LAB-${test.id}`}`;
-    sheet.getCell(`A${footerRow + 1}`).font = { italic: true, color: { argb: this.LIGHT_GRAY } };
+    sheet.getCell(`A${footerRow}`).value = `© ${new Date().getFullYear()} ${
+      test.laboratoryName || "Advanced Medical Laboratory"
+    }`;
+    sheet.getCell(`A${footerRow}`).font = {
+      italic: true,
+      color: { argb: this.LIGHT_GRAY },
+    };
 
-    sheet.getCell(`A${footerRow + 3}`).value = "Laboratory Management System developed by RAHIMI SOLUTION";
-    sheet.getCell(`A${footerRow + 3}`).font = { italic: true, color: { argb: this.LIGHT_GRAY } };
+    sheet.getCell(`A${footerRow + 1}`).value = `Report ID: ${
+      test.reportId || `LAB-${test.id}`
+    }`;
+    sheet.getCell(`A${footerRow + 1}`).font = {
+      italic: true,
+      color: { argb: this.LIGHT_GRAY },
+    };
+
+    sheet.getCell(`A${footerRow + 3}`).value =
+      "Laboratory Management System developed by RAHIMI SOLUTION";
+    sheet.getCell(`A${footerRow + 3}`).font = {
+      italic: true,
+      color: { argb: this.LIGHT_GRAY },
+    };
 
     // Set column widths
-    sheet.columns = [
-      { width: 20 },
-      { width: 25 },
-      { width: 20 },
-    ];
+    sheet.columns = [{ width: 20 }, { width: 25 }, { width: 20 }];
   }
 
   // ===== HELPER METHODS =====
@@ -736,7 +883,7 @@ export class LabReportExcel {
     test: LaboratoryTestWithDetails
   ): string {
     let interpretation = `This comprehensive laboratory report has been validated and reviewed. `;
-    
+
     if (test.testType === "blood") {
       interpretation += `Complete blood count parameters are within established reference ranges, indicating no evidence of anemia, infection, or hematological disorders. The leukocyte differential shows appropriate distribution. `;
     } else if (test.testType === "biochemistry") {
@@ -767,13 +914,13 @@ export class LabReportExcel {
   }
 
   private static wrapText(text: string, maxLength: number): string[] {
-    const words = text.split(' ');
+    const words = text.split(" ");
     const lines: string[] = [];
-    let currentLine = '';
+    let currentLine = "";
 
-    words.forEach(word => {
+    words.forEach((word) => {
       if (currentLine.length + word.length + 1 <= maxLength) {
-        currentLine += (currentLine ? ' ' : '') + word;
+        currentLine += (currentLine ? " " : "") + word;
       } else {
         if (currentLine) {
           lines.push(currentLine);
@@ -789,7 +936,7 @@ export class LabReportExcel {
     return lines;
   }
 
-  private static addBorders(sheet: ExcelJS.Worksheet, range: string): void {
+  private static addBorders(sheet: any, range: string): void {
     const rangeObj = sheet.getCell(range);
     // ExcelJS doesn't have a simple addBorders method like this
     // We'll need to iterate through the range and add borders to each cell
@@ -807,15 +954,15 @@ export class LabReportExcel {
       /\s+/g,
       "_"
     )}_${new Date().getTime()}.xlsx`;
-    
+
     const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { 
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" 
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
-    
+
     // Create download link
     const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
     link.download = fileName;
     document.body.appendChild(link);
@@ -824,11 +971,13 @@ export class LabReportExcel {
     window.URL.revokeObjectURL(url);
   }
 
-  static async openReportInNewWindow(test: LaboratoryTestWithDetails): Promise<void> {
+  static async openReportInNewWindow(
+    test: LaboratoryTestWithDetails
+  ): Promise<void> {
     const workbook = this.generateReport(test);
     const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { 
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" 
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
     const url = window.URL.createObjectURL(blob);
     window.open(url, "_blank");
@@ -837,16 +986,20 @@ export class LabReportExcel {
   static async getReportAsBlob(test: LaboratoryTestWithDetails): Promise<Blob> {
     const workbook = this.generateReport(test);
     const buffer = await workbook.xlsx.writeBuffer();
-    return new Blob([buffer], { 
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" 
+    return new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
   }
 
-  static async getReportAsBase64(test: LaboratoryTestWithDetails): Promise<string> {
+  static async getReportAsBase64(
+    test: LaboratoryTestWithDetails
+  ): Promise<string> {
     const workbook = this.generateReport(test);
     const buffer = await workbook.xlsx.writeBuffer();
     const arrayBuffer = new Uint8Array(buffer);
-    const binaryString = Array.from(arrayBuffer, byte => String.fromCharCode(byte)).join('');
+    const binaryString = Array.from(arrayBuffer, (byte) =>
+      String.fromCharCode(byte)
+    ).join("");
     return btoa(binaryString);
   }
 
@@ -856,8 +1009,8 @@ export class LabReportExcel {
   ): Promise<void> {
     const workbook = this.generateReport(test);
     const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { 
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" 
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
     console.log(`Emailing report to ${email}`, blob);
     // Here you would typically send the blob to your email service
@@ -866,8 +1019,8 @@ export class LabReportExcel {
   static async printReport(test: LaboratoryTestWithDetails): Promise<void> {
     const workbook = this.generateReport(test);
     const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { 
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" 
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
     const url = window.URL.createObjectURL(blob);
 

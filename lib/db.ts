@@ -1,6 +1,9 @@
 // lib/db.ts
 import mongoose from "mongoose";
 
+// Import all models to ensure they are registered with Mongoose
+import "@/models";
+
 const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
