@@ -3,7 +3,10 @@ import { useState, useRef, useEffect } from "react";
 import { Hotel } from "@/lib/constants";
 import { Button } from "./FeaturedButton";
 import { HotelCard } from "./HotelCard";
-import { fetchFeaturedRooms, getAvailableCategories } from "@/lib/featured-rooms-service";
+import {
+  fetchFeaturedRooms,
+  getAvailableCategories,
+} from "@/lib/featured-rooms-service";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -17,7 +20,9 @@ export const FeaturedHotels = ({
 }) => {
   const [activeFilter, setActiveFilter] = useState("all");
   const [hotels, setHotels] = useState<Hotel[]>([]);
-  const [availableCategories, setAvailableCategories] = useState<string[]>(["all"]);
+  const [availableCategories, setAvailableCategories] = useState<string[]>([
+    "all",
+  ]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -266,8 +271,8 @@ export const FeaturedHotels = ({
         ) : error ? (
           <div className="text-center py-20">
             <p className="text-red-400 mb-4">{error}</p>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => window.location.reload()}
               className="border-gold/30 text-gold hover:bg-gold/5"
             >
@@ -305,7 +310,7 @@ export const FeaturedHotels = ({
               {filteredHotels.length > 0 ? (
                 filteredHotels.map((hotel, index) => (
                   <HotelCard
-                    key={hotel.id}
+                    key={`${hotel.id}-${index}`}
                     hotel={hotel}
                     index={index}
                     onBookNow={() => onBookNow(hotel)}

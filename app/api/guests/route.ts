@@ -27,36 +27,42 @@ type ApiResponse<T> = {
 };
 
 // Helper function for consistent error responses
-function createErrorResponse(message: string, status: number = 500): NextResponse<ApiResponse<never>> {
+function createErrorResponse(
+  message: string,
+  status: number = 500
+): NextResponse<ApiResponse<never>> {
   return NextResponse.json(
     { error: message },
-    { 
+    {
       status,
       headers: {
-        'Cache-Control': 'no-store'
-      }
+        "Cache-Control": "no-store",
+      },
     }
   );
 }
 
 // Helper function for consistent success responses
-function createSuccessResponse<T>(data: T, options?: {
-  status?: number;
-  headers?: Record<string, string>;
-  message?: string;
-  pagination?: ApiResponse<T>['pagination'];
-}): NextResponse<ApiResponse<T>> {
+function createSuccessResponse<T>(
+  data: T,
+  options?: {
+    status?: number;
+    headers?: Record<string, string>;
+    message?: string;
+    pagination?: ApiResponse<T>["pagination"];
+  }
+): NextResponse<ApiResponse<T>> {
   const response: ApiResponse<T> = { data };
-  
+
   if (options?.message) response.message = options.message;
   if (options?.pagination) response.pagination = options.pagination;
 
   return NextResponse.json(response, {
     status: options?.status || 200,
     headers: {
-      'Cache-Control': 'private, max-age=60', // Cache for 1 minute
-      ...options?.headers
-    }
+      "Cache-Control": "private, max-age=60", // Cache for 1 minute
+      ...options?.headers,
+    },
   });
 }
 
@@ -99,7 +105,9 @@ function transformUserToGuest(user: any): GuestListItem {
 }
 
 // GET /api/guests - List guests with search and filtering
-export async function GET(request: NextRequest): Promise<NextResponse<ApiResponse<GuestListItem[]>>> {
+export async function GET(
+  request: NextRequest
+): Promise<NextResponse<ApiResponse<GuestListItem[]>>> {
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -153,8 +161,14 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
       .limit(limit)
       .lean();
 
+    // Ensure unique results by filtering duplicates by ID
+    const uniqueUsers = users.filter(
+      (user, index, array) =>
+        array.findIndex((u) => u._id === user._id) === index
+    );
+
     // Transform to guest format
-    const guests: GuestListItem[] = users.map(transformUserToGuest);
+    const guests: GuestListItem[] = uniqueUsers.map(transformUserToGuest);
 
     return createSuccessResponse(guests, {
       pagination: {
@@ -176,7 +190,9 @@ export async function GET(request: NextRequest): Promise<NextResponse<ApiRespons
 }
 
 // POST /api/guests - Create a new guest
-export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse<GuestListItem>>> {
+export async function POST(
+  request: NextRequest
+): Promise<NextResponse<ApiResponse<GuestListItem>>> {
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -203,8 +219,22 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     }
 
     // Create new guest as a User with role "guest"
+    // Use a more robust ID generation approach to prevent duplicates
+    let guestId = `guest_${Date.now()}_${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+    // Check if this ID already exists (extremely unlikely but good to verify)
+    const existingGuestWithId = await User.findById(guestId);
+
+    if (existingGuestWithId) {
+      // If ID collision occurs, generate a new one
+      guestId = `guest_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 12)}`;
+    }
+
     const newGuest = new User({
-      _id: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      _id: guestId,
       name: guestData.name,
       email: guestData.email,
       phone: guestData.phone,

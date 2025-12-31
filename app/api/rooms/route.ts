@@ -1,6 +1,7 @@
 // app/api/rooms/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import mongoose from "mongoose";
 import { Room } from "@/models/Room";
 import { RoomType } from "@/models/RoomType";
 import { Booking } from "@/models/Booking";
@@ -20,8 +21,6 @@ import {
 } from "@/lib/validation/room";
 import { z } from "zod";
 
-
-
 // Helper function to safely convert Decimal128 to number
 function convertToNumber(value: any): number {
   if (typeof value === "number") return value;
@@ -40,7 +39,7 @@ function transformRoomToResponse(room: any) {
     id: room._id.toString(),
     roomNumber: room.roomNumber,
     roomTypeId: room.roomType?.toString() || null,
-    roomType: room.roomTypeData || null,
+    roomType: room.roomType || null,
     floor: room.floor,
     status: room.status,
     lastCleaned: room.lastCleaned ? room.lastCleaned.toISOString() : null,
@@ -95,7 +94,7 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const queryData: Record<string, string> = {};
-    
+
     // Extract all search parameters
     searchParams.forEach((value, key) => {
       queryData[key] = value;
@@ -120,12 +119,17 @@ export async function GET(request: NextRequest) {
 
     // Apply floor filter
     if (query.floor && query.floor !== "all") {
-      filter.floor = parseInt(query.floor);
+      filter.floor = parseInt(query.floor.toString());
     }
 
     // Apply room type filter
     if (query.roomType && query.roomType !== "all") {
-      filter.roomType = query.roomType;
+      try {
+        filter.roomType = new mongoose.Types.ObjectId(query.roomType);
+      } catch (error) {
+        // If roomType is not a valid ObjectId, skip this filter
+        console.warn("Invalid roomType ObjectId:", query.roomType);
+      }
     }
 
     // Apply category filter (needs to be joined with roomType)
@@ -134,8 +138,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Pagination
-    const page = parseInt(query.page || "1");
-    const limit = parseInt(query.limit || "50");
+    const page = query.page || 1;
+    const limit = query.limit || 50;
     const skip = (page - 1) * limit;
 
     // Get total count for pagination
@@ -156,12 +160,15 @@ export async function GET(request: NextRequest) {
       .lean();
 
     // Transform rooms and handle category filter if needed
-    let transformedRooms = rooms.map((room: any) => ({
-      ...transformRoomToResponse(room),
-      roomType: room.roomType
-        ? transformRoomTypeToResponse(room.roomType)
-        : null,
-    }));
+    let transformedRooms = rooms.map((room: any) => {
+      const transformedRoom = transformRoomToResponse(room);
+      if (room.roomType) {
+        (transformedRoom as any).roomType = transformRoomTypeToResponse(
+          room.roomType
+        );
+      }
+      return transformedRoom;
+    });
 
     // Apply category filter if specified
     if (query.category && query.category !== "all") {
@@ -217,7 +224,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if room type exists
-    const roomType = await RoomType.findById(roomData.roomTypeId);
+    let roomTypeObjectId: mongoose.Types.ObjectId;
+    try {
+      roomTypeObjectId = new mongoose.Types.ObjectId(roomData.roomTypeId);
+    } catch (error) {
+      return NextResponse.json(
+        { error: "Invalid room type ID format" },
+        { status: 400 }
+      );
+    }
+
+    const roomType = await RoomType.findById(roomTypeObjectId);
     if (!roomType) {
       return NextResponse.json({ error: "نوع اتاق یافت نشد" }, { status: 400 });
     }
@@ -225,7 +242,7 @@ export async function POST(request: NextRequest) {
     // Create new room
     const newRoom = new Room({
       roomNumber: roomData.roomNumber,
-      roomType: roomData.roomTypeId,
+      roomType: roomTypeObjectId,
       floor: roomData.floor,
       status: roomData.status,
       notes: roomData.notes,
@@ -293,9 +310,19 @@ export async function PUT(request: NextRequest) {
     const roomData: UpdateRoomInput = updateRoomSchema.parse(body);
 
     // Check if room exists
-    const existingRoom = await Room.findById(roomData.id);
-    if (!existingRoom) {
-      return NextResponse.json({ error: "اتاق یافت نشد" }, { status: 404 });
+    let roomObjectId: mongoose.Types.ObjectId;
+    let existingRoom: any;
+    try {
+      roomObjectId = new mongoose.Types.ObjectId(roomData.id);
+      existingRoom = await Room.findById(roomObjectId);
+      if (!existingRoom) {
+        return NextResponse.json({ error: "اتاق یافت نشد" }, { status: 404 });
+      }
+    } catch (error) {
+      return NextResponse.json(
+        { error: "Invalid room ID format" },
+        { status: 400 }
+      );
     }
 
     // Check if room number already exists (if changing room number)
@@ -305,7 +332,7 @@ export async function PUT(request: NextRequest) {
     ) {
       const duplicateRoom = await Room.findOne({
         roomNumber: roomData.roomNumber,
-        _id: { $ne: roomData.id },
+        _id: { $ne: new mongoose.Types.ObjectId(roomData.id) },
       });
       if (duplicateRoom) {
         return NextResponse.json(
@@ -317,7 +344,17 @@ export async function PUT(request: NextRequest) {
 
     // Check if room type exists (if changing room type)
     if (roomData.roomTypeId) {
-      const roomType = await RoomType.findById(roomData.roomTypeId);
+      let roomTypeObjectId: mongoose.Types.ObjectId;
+      try {
+        roomTypeObjectId = new mongoose.Types.ObjectId(roomData.roomTypeId);
+      } catch (error) {
+        return NextResponse.json(
+          { error: "Invalid room type ID format" },
+          { status: 400 }
+        );
+      }
+
+      const roomType = await RoomType.findById(roomTypeObjectId);
       if (!roomType) {
         return NextResponse.json(
           { error: "نوع اتاق یافت نشد" },
@@ -329,14 +366,25 @@ export async function PUT(request: NextRequest) {
     // Update room
     const updateData: any = {};
     if (roomData.roomNumber) updateData.roomNumber = roomData.roomNumber;
-    if (roomData.roomTypeId) updateData.roomType = roomData.roomTypeId;
+    if (roomData.roomTypeId) {
+      try {
+        updateData.roomType = new mongoose.Types.ObjectId(roomData.roomTypeId);
+      } catch (error) {
+        return NextResponse.json(
+          { error: "Invalid room type ID format" },
+          { status: 400 }
+        );
+      }
+    }
     if (roomData.floor) updateData.floor = roomData.floor;
     if (roomData.status) updateData.status = roomData.status;
     if (roomData.notes !== undefined) updateData.notes = roomData.notes;
     if (roomData.imageUrl !== undefined)
       updateData.imageUrl = roomData.imageUrl;
 
-    const updatedRoom = await Room.findByIdAndUpdate(roomData.id, updateData, {
+    // roomObjectId is already defined above
+
+    const updatedRoom = await Room.findByIdAndUpdate(roomObjectId, updateData, {
       new: true,
     })
       .populate({
@@ -388,7 +436,7 @@ export async function DELETE(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const queryData: Record<string, string> = {};
-    
+
     searchParams.forEach((value, key) => {
       queryData[key] = value;
     });
@@ -396,14 +444,24 @@ export async function DELETE(request: NextRequest) {
     const { id: roomId } = deleteRoomQuerySchema.parse(queryData);
 
     // Check if room exists
-    const room = await Room.findById(roomId);
+    let roomObjectId: mongoose.Types.ObjectId;
+    try {
+      roomObjectId = new mongoose.Types.ObjectId(roomId);
+    } catch (error) {
+      return NextResponse.json(
+        { error: "Invalid room ID format" },
+        { status: 400 }
+      );
+    }
+
+    const room = await Room.findById(roomObjectId);
     if (!room) {
       return NextResponse.json({ error: "اتاق یافت نشد" }, { status: 404 });
     }
 
     // Check if room has active bookings
     const activeBookings = await Booking.findOne({
-      room: roomId,
+      room: roomObjectId,
       status: { $in: ["confirmed", "checked_in"] },
     });
 
@@ -415,7 +473,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete room
-    await Room.findByIdAndDelete(roomId);
+    await Room.findByIdAndDelete(roomObjectId);
 
     return NextResponse.json({
       success: true,
@@ -423,6 +481,9 @@ export async function DELETE(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error deleting room:", error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json(
       { error: "Failed to delete room" },
       { status: 500 }
