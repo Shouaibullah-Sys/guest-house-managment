@@ -187,45 +187,89 @@ export async function GET(
       limit: searchParams.get("limit") ?? undefined,
     });
 
-    // Build filter
-    const filter: any = {};
+    // Build filter using aggregation pipeline for better search
+    const pipeline: any[] = [];
 
-    // Apply search filter
+    // If we have a search term, use aggregation to search in guest name
     if (query.search) {
       const searchRegex = new RegExp(query.search, "i");
-      filter.$or = [
-        { bookingNumber: searchRegex },
-        { guest: searchRegex }, // This will be populated with guest name
-      ];
+      pipeline.push({
+        $lookup: {
+          from: "users", // Collection name in MongoDB
+          localField: "guest",
+          foreignField: "_id",
+          as: "guestData",
+        },
+      });
+
+      pipeline.push({
+        $match: {
+          $or: [
+            { bookingNumber: searchRegex },
+            { "guestData.name": searchRegex }, // Search in guest name
+            { "guestData.email": searchRegex }, // Search in guest email
+            { "guestData.phone": searchRegex }, // Search in guest phone
+          ],
+        },
+      });
+    } else {
+      // If no search, just match all
+      pipeline.push({ $match: {} });
     }
 
     // Apply status filter
     if (query.status && query.status !== "all") {
-      filter.status = query.status;
+      const matchStage = { $match: { status: query.status } };
+      if (query.search) {
+        // If we already have a $match stage from search, add to it
+        const existingMatch = pipeline.find((stage) => stage.$match);
+        if (existingMatch) {
+          existingMatch.$match.status = query.status;
+        } else {
+          pipeline.push(matchStage);
+        }
+      } else {
+        pipeline.push(matchStage);
+      }
     }
 
     // Apply payment status filter
     if (query.paymentStatus && query.paymentStatus !== "all") {
-      filter.paymentStatus = query.paymentStatus;
+      const matchStage = { $match: { paymentStatus: query.paymentStatus } };
+      if (query.search) {
+        const existingMatch = pipeline.find((stage) => stage.$match);
+        if (existingMatch) {
+          existingMatch.$match.paymentStatus = query.paymentStatus;
+        } else {
+          pipeline.push(matchStage);
+        }
+      } else {
+        pipeline.push(matchStage);
+      }
     }
 
     // Apply date range filter
     if (query.dateRange && query.dateRange !== "all") {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      let dateFilter: any = {};
 
       switch (query.dateRange) {
         case "today":
-          filter.checkInDate = {
-            $gte: today,
-            $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+          dateFilter = {
+            checkInDate: {
+              $gte: today,
+              $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+            },
           };
           break;
         case "tomorrow":
           const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-          filter.checkInDate = {
-            $gte: tomorrow,
-            $lt: new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000),
+          dateFilter = {
+            checkInDate: {
+              $gte: tomorrow,
+              $lt: new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000),
+            },
           };
           break;
         case "this_week":
@@ -235,7 +279,7 @@ export async function GET(
           const endOfWeek = new Date(
             today.setDate(today.getDate() - today.getDay() + 6)
           );
-          filter.checkInDate = { $gte: startOfWeek, $lte: endOfWeek };
+          dateFilter = { checkInDate: { $gte: startOfWeek, $lte: endOfWeek } };
           break;
         case "next_week":
           const nextWeekStart = new Date(
@@ -244,71 +288,177 @@ export async function GET(
           const nextWeekEnd = new Date(
             today.setDate(today.getDate() - today.getDay() + 13)
           );
-          filter.checkInDate = { $gte: nextWeekStart, $lte: nextWeekEnd };
+          dateFilter = {
+            checkInDate: { $gte: nextWeekStart, $lte: nextWeekEnd },
+          };
           break;
         case "this_month":
           const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
           const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-          filter.checkInDate = { $gte: startOfMonth, $lte: endOfMonth };
+          dateFilter = {
+            checkInDate: { $gte: startOfMonth, $lte: endOfMonth },
+          };
           break;
       }
+
+      const matchStage = { $match: dateFilter };
+      const existingMatch = pipeline.find((stage) => stage.$match);
+      if (existingMatch) {
+        Object.assign(existingMatch.$match, dateFilter);
+      } else {
+        pipeline.push(matchStage);
+      }
     }
+
+    // Count total matching documents
+    const countPipeline = [...pipeline];
+    countPipeline.push({ $count: "total" });
+    const countResult = await Booking.aggregate(countPipeline);
+    const totalCount = countResult.length > 0 ? countResult[0].total : 0;
 
     // Pagination
     const page = Math.max(1, parseInt(query.page || "1"));
     const limit = Math.min(100, Math.max(1, parseInt(query.limit || "10")));
     const skip = (page - 1) * limit;
-
-    // Get total count for pagination
-    const totalCount = await Booking.countDocuments(filter);
     const totalPages = Math.ceil(totalCount / limit);
 
-    // Get bookings with populated guest and room data
-    const bookings = await Booking.find(filter)
-      .populate({
-        path: "guest",
-        model: "User",
-        select: "name email phone",
-        options: { lean: true },
-      })
-      .populate({
-        path: "room",
-        model: "Room",
-        select: "roomNumber floor roomType",
-        options: { lean: true },
-        populate: {
-          path: "roomType",
-          model: "RoomType",
-          select: "name",
-          options: { lean: true },
-        },
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    // Add pagination and population
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limit });
+
+    // Add population stages
+    pipeline.push({
+      $lookup: {
+        from: "users",
+        localField: "guest",
+        foreignField: "_id",
+        as: "guest",
+      },
+    });
+
+    pipeline.push({
+      $unwind: {
+        path: "$guest",
+        preserveNullAndEmptyArrays: true,
+      },
+    });
+
+    pipeline.push({
+      $lookup: {
+        from: "rooms",
+        localField: "room",
+        foreignField: "_id",
+        as: "room",
+      },
+    });
+
+    pipeline.push({
+      $unwind: {
+        path: "$room",
+        preserveNullAndEmptyArrays: true,
+      },
+    });
+
+    pipeline.push({
+      $lookup: {
+        from: "roomtypes",
+        localField: "room.roomType",
+        foreignField: "_id",
+        as: "room.roomType",
+      },
+    });
+
+    pipeline.push({
+      $unwind: {
+        path: "$room.roomType",
+        preserveNullAndEmptyArrays: true,
+      },
+    });
+
+    pipeline.push({
+      $sort: { createdAt: -1 },
+    });
+
+    // Execute aggregation
+    const bookings = await Booking.aggregate(pipeline);
 
     // Transform to frontend format
-    const transformedBookings: BookingResponse[] = bookings.map(
-      transformBookingToResponse
-    );
+    const transformedBookings: BookingResponse[] = bookings.map((booking) => ({
+      id: booking._id.toString(),
+      bookingNumber: booking.bookingNumber,
+      guestId: booking.guest?._id?.toString() || "",
+      guestName: booking.guest?.name || "Unknown Guest",
+      guestEmail: booking.guest?.email || "",
+      guestPhone: booking.guest?.phone || "",
+      roomNumber: booking.room?.roomNumber || "Unknown",
+      roomType: booking.room?.roomType?.name || "Unknown",
+      checkInDate: booking.checkInDate.toISOString().split("T")[0],
+      checkOutDate: booking.checkOutDate.toISOString().split("T")[0],
+      totalNights: booking.totalNights,
+      adults: booking.adults,
+      children: booking.children,
+      infants: booking.infants,
+      totalAmount: booking.totalAmount,
+      paidAmount: booking.paidAmount,
+      outstandingAmount: booking.outstandingAmount,
+      status: booking.status,
+      paymentStatus: booking.paymentStatus,
+      specialRequests: booking.specialRequests || "",
+      source: booking.source || "",
+      createdAt: booking.createdAt.toISOString(),
+      updatedAt: booking.updatedAt.toISOString(),
+      notes: booking.notes || "",
+    }));
 
-    // Calculate statistics
-    const stats = await Booking.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalBookings: { $sum: 1 },
-          confirmedBookings: {
-            $sum: { $cond: [{ $eq: ["$status", "confirmed"] }, 1, 0] },
-          },
-          checkedInBookings: {
-            $sum: { $cond: [{ $eq: ["$status", "checked_in"] }, 1, 0] },
-          },
-          revenue: { $sum: { $toDouble: "$totalAmount" } },
+    // Calculate statistics (simpler version for now)
+    const statsPipeline = [];
+
+    // Add the same filters for stats
+    if (query.search) {
+      statsPipeline.push({
+        $lookup: {
+          from: "users",
+          localField: "guest",
+          foreignField: "_id",
+          as: "guestData",
         },
+      });
+
+      statsPipeline.push({
+        $match: {
+          $or: [
+            { bookingNumber: new RegExp(query.search, "i") },
+            { "guestData.name": new RegExp(query.search, "i") },
+          ],
+        },
+      });
+    }
+
+    // Add other filters to stats
+    if (query.status && query.status !== "all") {
+      statsPipeline.push({ $match: { status: query.status } });
+    }
+
+    if (query.paymentStatus && query.paymentStatus !== "all") {
+      statsPipeline.push({ $match: { paymentStatus: query.paymentStatus } });
+    }
+
+    // Add aggregation for stats
+    statsPipeline.push({
+      $group: {
+        _id: null,
+        totalBookings: { $sum: 1 },
+        confirmedBookings: {
+          $sum: { $cond: [{ $eq: ["$status", "confirmed"] }, 1, 0] },
+        },
+        checkedInBookings: {
+          $sum: { $cond: [{ $eq: ["$status", "checked_in"] }, 1, 0] },
+        },
+        revenue: { $sum: { $toDouble: "$totalAmount" } },
       },
-    ]);
+    });
+
+    const stats = await Booking.aggregate(statsPipeline);
 
     const statistics = stats[0] || {
       totalBookings: 0,
