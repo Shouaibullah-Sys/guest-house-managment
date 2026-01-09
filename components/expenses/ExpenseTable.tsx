@@ -184,7 +184,7 @@ export function ExpenseTable({
         setTimeout(() => {
           isTypingRef.current = false;
         }, 50);
-      }, 300); // 300ms debounce
+      }, 1000); // 300ms debounce
     },
     [filters, onFilterChange]
   );

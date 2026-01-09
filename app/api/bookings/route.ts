@@ -383,6 +383,18 @@ export async function GET(
     const bookings = await Booking.aggregate(pipeline);
 
     // Transform to frontend format
+    // Reuse the convertToNumber helper from transformBookingToResponse
+    const convertToNumber = (value: any): number => {
+      if (typeof value === "number") return value;
+      if (value && typeof value === "object" && "$numberDecimal" in value) {
+        return parseFloat(value.$numberDecimal);
+      }
+      if (value && typeof value === "object" && "toString" in value) {
+        return parseFloat(value.toString());
+      }
+      return 0;
+    };
+
     const transformedBookings: BookingResponse[] = bookings.map((booking) => ({
       id: booking._id.toString(),
       bookingNumber: booking.bookingNumber,
@@ -398,9 +410,9 @@ export async function GET(
       adults: booking.adults,
       children: booking.children,
       infants: booking.infants,
-      totalAmount: booking.totalAmount,
-      paidAmount: booking.paidAmount,
-      outstandingAmount: booking.outstandingAmount,
+      totalAmount: convertToNumber(booking.totalAmount),
+      paidAmount: convertToNumber(booking.paidAmount),
+      outstandingAmount: convertToNumber(booking.outstandingAmount),
       status: booking.status,
       paymentStatus: booking.paymentStatus,
       specialRequests: booking.specialRequests || "",
