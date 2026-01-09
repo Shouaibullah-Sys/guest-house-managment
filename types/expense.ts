@@ -1,14 +1,15 @@
 // types/expense.ts
 export type ExpenseCategory =
   | "لوازم اداری"
+  | "خدمات عمومی"
   | "حمل و نقل"
   | "بازاریابی"
   | "نگهداری"
   | "سفر"
   | "غذا و سرگرمی"
-  | "معاشات"
+  | "بیمه"
   | "کرایه"
-  | "تجهیزات"
+  | "تجهيزات"
   | "نرم افزار"
   | "خدمات حرفه‌ای"
   | "سایر";
@@ -20,13 +21,13 @@ export interface Expense {
   amount: number;
   currency: string;
   category: ExpenseCategory;
-  expenseDate: Date;
+  expenseDate: Date | string; // Can be Date object or ISO string from API
   receiptNumber?: string;
   vendor?: string;
   createdBy?: string;
   updatedBy?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: Date | string;
+  updatedAt: Date | string;
 }
 
 export interface ExpenseSummary {
@@ -54,14 +55,15 @@ export interface ExpenseSummary {
 
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   "لوازم اداری",
+  "خدمات عمومی",
   "حمل و نقل",
   "بازاریابی",
   "نگهداری",
   "سفر",
   "غذا و سرگرمی",
-  "معاشات",
+  "بیمه",
   "کرایه",
-  "تجهیزات",
+  "تجهيزات",
   "نرم افزار",
   "خدمات حرفه‌ای",
   "سایر",

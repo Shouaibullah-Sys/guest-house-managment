@@ -6,38 +6,34 @@ import { AuditLog } from "@/models/AuditLog";
 import dbConnect from "@/lib/db";
 import { z } from "zod";
 import { Types } from "mongoose";
-import { IExpense } from "@/models/types";
+import { convertMongoData, sanitizeExpenseData } from "@/lib/db-utils";
+import { EXPENSE_CATEGORIES } from "@/types/expense";
 
+// Validation schema for update
 const expenseUpdateSchema = z.object({
-  title: z.string().min(1).max(200).optional(),
+  title: z
+    .string()
+    .min(1, "Title is required")
+    .max(200, "Title too long")
+    .optional(),
   description: z.string().optional(),
   amount: z
-    .number()
-    .positive()
-    .or(z.string().regex(/^\d*\.?\d*$/))
+    .union([
+      z.number().positive("Amount must be positive"),
+      z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid amount format"),
+    ])
     .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
     .optional(),
-  currency: z.string().length(3).optional(),
-  category: z
-    .enum([
-      "لوازم اداری",
-      "خدمات عمومی",
-      "حمل و نقل",
-      "بازاریابی",
-      "نگهداری",
-      "سفر",
-      "غذا و سرگرمی",
-      "بیمه",
-      "کرایه",
-      "تجهیزات",
-      "نرم افزار",
-      "خدمات حرفه‌ای",
-      "سایر",
-    ])
-    .optional(),
+  currency: z.string().length(3, "Currency must be 3 characters").optional(),
+  category: z.enum(EXPENSE_CATEGORIES as [string, ...string[]]).optional(),
   expenseDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .union([
+      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
+      z.date(),
+    ])
+    .transform((val) =>
+      val instanceof Date ? val.toISOString().split("T")[0] : val
+    )
     .optional(),
   receiptNumber: z.string().optional(),
   vendor: z.string().optional(),
@@ -57,7 +53,7 @@ export async function GET(
     const { id } = await params;
     await dbConnect();
 
-    if (!Types.ObjectId.isValid(new Types.ObjectId(id))) {
+    if (!Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { error: "Invalid expense ID" },
         { status: 400 }
@@ -67,13 +63,13 @@ export async function GET(
     const expense = await Expense.findOne({
       _id: id,
       createdBy: userId,
-    });
+    }).lean();
 
     if (!expense) {
       return NextResponse.json({ error: "Expense not found" }, { status: 404 });
     }
 
-    return NextResponse.json(expense.toObject());
+    return NextResponse.json(convertMongoData(expense));
   } catch (error) {
     console.error("Error fetching expense:", error);
     return NextResponse.json(
@@ -97,7 +93,7 @@ export async function PUT(
     const { id } = await params;
     await dbConnect();
 
-    if (!Types.ObjectId.isValid(new Types.ObjectId(id))) {
+    if (!Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { error: "Invalid expense ID" },
         { status: 400 }
@@ -105,17 +101,18 @@ export async function PUT(
     }
 
     // Get current expense
-    const currentExpense = (await Expense.findOne({
+    const currentExpense = await Expense.findOne({
       _id: id,
       createdBy: userId,
-    })) as IExpense;
+    });
 
     if (!currentExpense) {
       return NextResponse.json({ error: "Expense not found" }, { status: 404 });
     }
 
     const body = await request.json();
-    const validatedData = expenseUpdateSchema.parse(body);
+    const sanitizedBody = sanitizeExpenseData(body);
+    const validatedData = expenseUpdateSchema.parse(sanitizedBody);
 
     // Prepare update data
     const updateData: any = { ...validatedData, updatedBy: userId };
@@ -126,7 +123,8 @@ export async function PUT(
 
     const updatedExpense = await Expense.findByIdAndUpdate(id, updateData, {
       new: true,
-    });
+      runValidators: true,
+    }).lean();
 
     if (!updatedExpense) {
       return NextResponse.json({ error: "Expense not found" }, { status: 404 });
@@ -137,20 +135,23 @@ export async function PUT(
       user: userId,
       action: "UPDATE",
       entity: "expense",
-      entityId: updatedExpense._id,
+      entityId: id,
       oldValues: currentExpense.toObject(),
-      newValues: updatedExpense.toObject(),
+      newValues: updatedExpense,
       ipAddress: request.headers.get("x-forwarded-for") || "unknown",
       userAgent: request.headers.get("user-agent") || "",
     });
 
     await auditLogEntry.save();
 
-    return NextResponse.json(updatedExpense.toObject());
+    return NextResponse.json(convertMongoData(updatedExpense));
   } catch (error) {
     console.error("Error updating expense:", error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json(
+        { error: "Validation error", details: error.message },
+        { status: 400 }
+      );
     }
     return NextResponse.json(
       { error: "Failed to update expense" },
@@ -173,7 +174,7 @@ export async function DELETE(
     const { id } = await params;
     await dbConnect();
 
-    if (!Types.ObjectId.isValid(new Types.ObjectId(id))) {
+    if (!Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { error: "Invalid expense ID" },
         { status: 400 }
@@ -181,10 +182,10 @@ export async function DELETE(
     }
 
     // Get current expense
-    const currentExpense = (await Expense.findOne({
+    const currentExpense = await Expense.findOne({
       _id: id,
       createdBy: userId,
-    })) as IExpense;
+    });
 
     if (!currentExpense) {
       return NextResponse.json({ error: "Expense not found" }, { status: 404 });
@@ -197,7 +198,7 @@ export async function DELETE(
       user: userId,
       action: "DELETE",
       entity: "expense",
-      entityId: currentExpense._id,
+      entityId: id,
       oldValues: currentExpense.toObject(),
       ipAddress: request.headers.get("x-forwarded-for") || "unknown",
       userAgent: request.headers.get("user-agent") || "",

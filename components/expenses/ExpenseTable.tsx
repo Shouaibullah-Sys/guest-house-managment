@@ -1,7 +1,7 @@
-// components/expenses/ExpenseTable.tsx - Updated with MongoDB types
+// components/expenses/ExpenseTable.tsx - Fixed with React.memo to prevent focus loss
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Table,
   TableBody,
@@ -42,9 +42,7 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
-  Eye,
   Filter,
-  Download,
   Search,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -58,6 +56,13 @@ interface ExpenseTableProps {
     limit: number;
     total: number;
     totalPages: number;
+  };
+  filters: {
+    search: string;
+    category: string;
+    vendor: string;
+    startDate: string;
+    endDate: string;
   };
   onPageChange: (page: number) => void;
   onFilterChange: (filters: any) => void;
@@ -81,28 +86,111 @@ const categoryColors: Record<string, string> = {
   سایر: "bg-gray-100 text-gray-800",
 };
 
+// Custom comparison function for React.memo
+// Only re-render when meaningful props change, not just object references
+function arePropsEqual(
+  prevProps: ExpenseTableProps,
+  nextProps: ExpenseTableProps
+): boolean {
+  // Check pagination
+  if (prevProps.pagination.page !== nextProps.pagination.page) {
+    return false;
+  }
+  if (prevProps.pagination.total !== nextProps.pagination.total) {
+    return false;
+  }
+
+  // Check filters - compare actual values, not object reference
+  if (prevProps.filters.search !== nextProps.filters.search) {
+    return false;
+  }
+  if (prevProps.filters.category !== nextProps.filters.category) {
+    return false;
+  }
+  if (prevProps.filters.vendor !== nextProps.filters.vendor) {
+    return false;
+  }
+  if (prevProps.filters.startDate !== nextProps.filters.startDate) {
+    return false;
+  }
+  if (prevProps.filters.endDate !== nextProps.filters.endDate) {
+    return false;
+  }
+
+  // Check expenses - only compare length and essential data
+  // We don't deep compare the array to avoid performance issues
+  if (prevProps.expenses.length !== nextProps.expenses.length) {
+    return false;
+  }
+
+  // Check if the first expense ID changed (indicates data refresh)
+  // This is a simple heuristic - if data refreshed, we need to re-render
+  if (prevProps.expenses.length > 0 && nextProps.expenses.length > 0) {
+    if (prevProps.expenses[0]?._id !== nextProps.expenses[0]?._id) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export function ExpenseTable({
   expenses,
   pagination,
+  filters,
   onPageChange,
   onFilterChange,
   onDelete,
   onEdit,
 }: ExpenseTableProps) {
-  const [filters, setFilters] = useState({
-    search: "",
-    category: "all",
-    vendor: "",
-    startDate: "",
-    endDate: "",
-  });
+  // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
 
+  // Only track search input for responsive typing - sync with parent filters.search
+  const [searchInput, setSearchInput] = useState(filters.search);
+
+  // Use ref to track if we're currently typing
+  const isTypingRef = useRef(false);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync searchInput from parent when filters.search changes (and not typing)
+  useEffect(() => {
+    if (!isTypingRef.current && filters.search !== searchInput) {
+      setSearchInput(filters.search);
+    }
+  }, [filters.search]);
+
+  // Handle search input changes with debounce
+  const handleSearchInputChange = useCallback(
+    (value: string) => {
+      // Set typing flag
+      isTypingRef.current = true;
+
+      // Update the input value immediately for responsive typing
+      setSearchInput(value);
+
+      // Clear any existing timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      // Set new debounce timer
+      debounceTimerRef.current = setTimeout(() => {
+        // Update parent filters with new search value
+        onFilterChange({ ...filters, search: value });
+
+        // Reset typing flag after a short delay to allow parent sync
+        setTimeout(() => {
+          isTypingRef.current = false;
+        }, 50);
+      }, 300); // 300ms debounce
+    },
+    [filters, onFilterChange]
+  );
+
   const handleFilterChange = (key: string, value: string) => {
-    const newFilters = { ...filters, [key]: value };
-    setFilters(newFilters);
-    onFilterChange(newFilters);
+    onFilterChange({ ...filters, [key]: value });
   };
 
   const handleDelete = async () => {
@@ -113,13 +201,75 @@ export function ExpenseTable({
     }
   };
 
-  const formatCurrency = (amount: number, currency: string) => {
-    const formatter = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 2,
-    });
-    return formatter.format(amount);
+  const formatCurrency = (amount: number | string, currency: string) => {
+    // Handle NaN, undefined, null, or invalid values
+    const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
+
+    if (
+      isNaN(numAmount) ||
+      numAmount === null ||
+      numAmount === undefined ||
+      !isFinite(numAmount)
+    ) {
+      return `- ${currency}`;
+    }
+
+    try {
+      const formatter = new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: currency || "USD", // Default to USD if empty
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      return formatter.format(numAmount);
+    } catch (error) {
+      // Fallback if currency code is invalid
+      return `${numAmount.toFixed(2)} ${currency || "USD"}`;
+    }
+  };
+
+  const formatDate = (dateValue: Date | string | null | undefined): string => {
+    // Handle null, undefined, or empty values
+    if (!dateValue) {
+      return "-";
+    }
+
+    let date: Date;
+
+    // Parse the date - handle both Date objects and string formats
+    if (dateValue instanceof Date) {
+      date = dateValue;
+    } else if (typeof dateValue === "string") {
+      // Try parsing the string - handle various formats
+      // First try ISO format (most common from API)
+      date = new Date(dateValue);
+
+      // If invalid, try alternative parsing
+      if (isNaN(date.getTime())) {
+        // Try parsing as MM/DD/YYYY or DD/MM/YYYY
+        const parts = dateValue.split(/[-\/]/);
+        if (parts.length === 3) {
+          // Assume YYYY-MM-DD or MM/DD/YYYY
+          const year = parseInt(parts[0]);
+          const month = parseInt(parts[1]) - 1;
+          const day = parseInt(parts[2]);
+          date = new Date(year, month, day);
+        }
+      }
+    } else {
+      return "Invalid Date";
+    }
+
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return "Invalid Date";
+    }
+
+    try {
+      return format(date, "MMM dd, yyyy");
+    } catch (error) {
+      return "Invalid Date";
+    }
   };
 
   return (
@@ -131,8 +281,8 @@ export function ExpenseTable({
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Search expenses..."
-                value={filters.search}
-                onChange={(e) => handleFilterChange("search", e.target.value)}
+                value={searchInput}
+                onChange={(e) => handleSearchInputChange(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -198,9 +348,7 @@ export function ExpenseTable({
                   <TableCell className="font-medium">
                     {formatCurrency(expense.amount, expense.currency)}
                   </TableCell>
-                  <TableCell>
-                    {format(new Date(expense.expenseDate), "MMM dd, yyyy")}
-                  </TableCell>
+                  <TableCell>{formatDate(expense.expenseDate)}</TableCell>
                   <TableCell>{expense.vendor || "-"}</TableCell>
                   <TableCell>{expense.receiptNumber || "-"}</TableCell>
                   <TableCell className="text-right">
@@ -303,3 +451,6 @@ export function ExpenseTable({
     </>
   );
 }
+
+// Memoize the component with custom comparison to prevent unnecessary re-renders
+export const MemoizedExpenseTable = React.memo(ExpenseTable, arePropsEqual);

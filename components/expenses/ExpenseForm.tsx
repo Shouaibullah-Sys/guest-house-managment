@@ -1,10 +1,9 @@
 // components/expenses/ExpenseForm.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -42,30 +41,50 @@ interface ExpenseFormProps {
   initialData?: Partial<ExpenseFormData> & { _id?: string };
   onSubmit: (data: ExpenseFormData) => Promise<void>;
   isSubmitting?: boolean;
+  onCancel?: () => void;
 }
+
+// Define default values matching the schema
+const defaultValues: ExpenseFormData = {
+  title: "",
+  description: "",
+  amount: "",
+  currency: "USD", // Explicit default value
+  category: "سایر",
+  expenseDate: new Date(),
+  receiptNumber: "",
+  vendor: "",
+};
 
 export function ExpenseForm({
   initialData,
   onSubmit,
   isSubmitting,
+  onCancel,
 }: ExpenseFormProps) {
-  const [date, setDate] = useState<Date | undefined>(
-    initialData?.expenseDate || new Date()
-  );
-
+  // Initialize form with proper typing
   const form = useForm<ExpenseFormData>({
     resolver: zodResolver(expenseFormSchema),
-    defaultValues: {
-      title: initialData?.title || "",
-      description: initialData?.description || "",
-      amount: initialData?.amount?.toString() || "",
-      currency: initialData?.currency || "USD",
-      category: initialData?.category || "سایر",
-      expenseDate: initialData?.expenseDate || new Date(),
-      receiptNumber: initialData?.receiptNumber || "",
-      vendor: initialData?.vendor || "",
-    },
+    defaultValues,
   });
+
+  // Reset form when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        title: initialData.title || "",
+        description: initialData.description || "",
+        amount: initialData.amount || "",
+        currency: initialData.currency || "USD",
+        category: initialData.category || "سایر",
+        expenseDate: initialData.expenseDate || new Date(),
+        receiptNumber: initialData.receiptNumber || "",
+        vendor: initialData.vendor || "",
+      });
+    } else {
+      form.reset(defaultValues);
+    }
+  }, [initialData, form]);
 
   const handleSubmit = async (data: ExpenseFormData) => {
     await onSubmit(data);
@@ -95,15 +114,10 @@ export function ExpenseForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Category *</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                  </FormControl>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
                   <SelectContent>
                     {EXPENSE_CATEGORIES.map((category) => (
                       <SelectItem key={category} value={category}>
@@ -125,10 +139,17 @@ export function ExpenseForm({
                 <FormLabel>Amount *</FormLabel>
                 <FormControl>
                   <Input
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     placeholder="0.00"
                     {...field}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Allow only numbers and one decimal point
+                      if (/^\d*\.?\d*$/.test(value)) {
+                        field.onChange(value);
+                      }
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -142,15 +163,10 @@ export function ExpenseForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Currency *</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select currency" />
-                    </SelectTrigger>
-                  </FormControl>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USD">USD ($)</SelectItem>
                     <SelectItem value="AFN">AFN (؋)</SelectItem>
@@ -178,7 +194,7 @@ export function ExpenseForm({
                           !field.value && "text-muted-foreground"
                         )}
                       >
-                        {field.value ? (
+                        {field.value && !isNaN(field.value.getTime()) ? (
                           format(field.value, "PPP")
                         ) : (
                           <span>Pick a date</span>
@@ -253,7 +269,15 @@ export function ExpenseForm({
           <Button
             type="button"
             variant="outline"
-            onClick={() => form.reset()}
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => form.reset(defaultValues)}
             disabled={isSubmitting}
           >
             Reset

@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { Expense } from "@/models/Expense";
 import dbConnect from "@/lib/db";
 import { z } from "zod";
+import { convertMongoData } from "@/lib/db-utils";
 
 const summaryQuerySchema = z.object({
   period: z.enum(["day", "week", "month", "year", "custom"]).default("month"),
@@ -143,8 +144,15 @@ export async function GET(request: NextRequest) {
             $concat: [
               { $toString: "$_id.year" },
               "-",
-              { $toString: { $cond: [{ $lt: ["$_id.month", 10] }, "0", ""] } },
-              { $toString: "$_id.month" },
+              {
+                $toString: {
+                  $cond: [
+                    { $lt: ["$_id.month", 10] },
+                    { $concat: ["0", { $toString: "$_id.month" }] },
+                    { $toString: "$_id.month" },
+                  ],
+                },
+              },
             ],
           },
           total: 1,
@@ -160,14 +168,14 @@ export async function GET(request: NextRequest) {
         end: endDate.toISOString().split("T")[0],
       },
       summary: {
-        totalAmount: totalSummaryResult.totalAmount || 0,
-        averageAmount: totalSummaryResult.averageAmount || 0,
+        totalAmount: convertMongoData(totalSummaryResult.totalAmount),
+        averageAmount: convertMongoData(totalSummaryResult.averageAmount),
         count: totalSummaryResult.count || 0,
-        minAmount: totalSummaryResult.minAmount || 0,
-        maxAmount: totalSummaryResult.maxAmount || 0,
+        minAmount: convertMongoData(totalSummaryResult.minAmount),
+        maxAmount: convertMongoData(totalSummaryResult.maxAmount),
       },
-      byCategory: summaryByCategory,
-      monthlyTrend,
+      byCategory: convertMongoData(summaryByCategory),
+      monthlyTrend: convertMongoData(monthlyTrend),
     });
   } catch (error) {
     console.error("Error fetching expense summary:", error);

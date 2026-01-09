@@ -63,13 +63,34 @@ const COLORS = [
 ];
 
 export function ExpenseSummary({ data }: ExpenseSummaryProps) {
-  const formatCurrency = (amount: number, currency: string = "USD") => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
+  const formatCurrency = (
+    amount: number | string,
+    currency: string = "USD"
+  ) => {
+    // Handle NaN, undefined, null, or invalid values
+    const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
+
+    // More robust check for invalid numbers
+    if (
+      isNaN(numAmount) ||
+      numAmount === null ||
+      numAmount === undefined ||
+      !isFinite(numAmount)
+    ) {
+      return `- ${currency}`;
+    }
+
+    try {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(numAmount);
+    } catch (error) {
+      // Fallback for invalid currency codes
+      return `${numAmount.toLocaleString()} ${currency}`;
+    }
   };
 
   return (

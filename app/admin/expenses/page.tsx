@@ -1,4 +1,4 @@
-// app/expenses/page.tsx
+// app/expenses/page.tsx (updated part)
 "use client";
 
 import { useState, useEffect } from "react";
@@ -7,7 +7,10 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle, Download, AlertTriangle } from "lucide-react";
-import { ExpenseTable } from "@/components/expenses/ExpenseTable";
+import {
+  ExpenseTable,
+  MemoizedExpenseTable,
+} from "@/components/expenses/ExpenseTable";
 import { ExpenseSummary } from "@/components/expenses/ExpenseSummary";
 import { ExpenseForm } from "@/components/expenses/ExpenseForm";
 import {
@@ -17,15 +20,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useAuthenticatedFetch, useAuthDebug } from "@/lib/auth-client";
+import { useAuthenticatedFetch } from "@/lib/auth-client";
 import type { Expense, ExpenseCategory } from "@/types/expense";
 import { EXPENSE_CATEGORIES } from "@/types/expense";
+import { ExpenseFormData } from "@/lib/validation/expense";
 
 export default function ExpensesPage() {
   const router = useRouter();
   const { isSignedIn, userId } = useAuth();
   const authenticatedFetch = useAuthenticatedFetch();
-  const authDebug = useAuthDebug();
   const [activeTab, setActiveTab] = useState("list");
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [pagination, setPagination] = useState({
@@ -35,14 +38,28 @@ export default function ExpensesPage() {
     totalPages: 0,
   });
   const [summaryData, setSummaryData] = useState<any>(null);
-  const [filters, setFilters] = useState<Record<string, any>>({});
+  const [filters, setFilters] = useState<{
+    search: string;
+    category: string;
+    vendor: string;
+    startDate: string;
+    endDate: string;
+  }>({
+    search: "",
+    category: "all",
+    vendor: "",
+    startDate: "",
+    endDate: "",
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+
+  // Fix: Update the type to match ExpenseForm expectations
   const [editingExpense, setEditingExpense] = useState<{
     title: string;
     description?: string;
-    amount: string;
+    amount: string; // Keep as string for form
     currency: string;
     category: ExpenseCategory;
     expenseDate: Date;
@@ -51,8 +68,17 @@ export default function ExpensesPage() {
     _id?: string;
   } | null>(null);
 
+  // Redirect if not signed in
+  useEffect(() => {
+    if (!isSignedIn) {
+      router.push("/sign-in");
+    }
+  }, [isSignedIn, router]);
+
   // Fetch expenses
   const fetchExpenses = async () => {
+    if (!isSignedIn) return;
+
     try {
       setIsLoading(true);
       setAuthError(null);
@@ -61,19 +87,17 @@ export default function ExpensesPage() {
         page: pagination.page.toString(),
         limit: pagination.limit.toString(),
         ...Object.entries(filters)
-          .filter(([_, value]) => value !== undefined && value !== "")
+          .filter(
+            ([_, value]) =>
+              value !== undefined && value !== "" && value !== "all"
+          )
           .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {}),
       });
 
       const response = await authenticatedFetch(`/api/expenses?${queryParams}`);
 
-      if (response.status === 401) {
+      if (response.status === 401 || response.status === 403) {
         setAuthError("Authentication required. Please sign in again.");
-        return;
-      }
-
-      if (response.status === 403) {
-        setAuthError("Access denied. Please check your permissions.");
         return;
       }
 
@@ -82,16 +106,17 @@ export default function ExpensesPage() {
         setExpenses(data.data);
         setPagination(data.pagination);
       } else {
-        console.error(
-          "Failed to fetch expenses:",
-          response.status,
-          response.statusText
-        );
+        const error = await response.text();
+        console.error("Failed to fetch expenses:", error);
         setAuthError(`Failed to load expenses: ${response.statusText}`);
       }
     } catch (error) {
       console.error("Error fetching expenses:", error);
-      setAuthError(`Network error: ${error}`);
+      setAuthError(
+        `Network error: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     } finally {
       setIsLoading(false);
     }
@@ -99,8 +124,13 @@ export default function ExpensesPage() {
 
   // Fetch summary
   const fetchSummary = async () => {
+    if (!isSignedIn) return;
+
     try {
-      const response = await authenticatedFetch("/api/expenses/summary");
+      // Use 'year' period to include all expenses in categories view
+      const response = await authenticatedFetch(
+        "/api/expenses/summary?period=year"
+      );
       if (response.ok) {
         const data = await response.json();
         setSummaryData(data);
@@ -108,7 +138,7 @@ export default function ExpensesPage() {
         console.error(
           "Failed to fetch summary:",
           response.status,
-          response.statusText
+          await response.text()
         );
       }
     } catch (error) {
@@ -119,7 +149,7 @@ export default function ExpensesPage() {
   useEffect(() => {
     if (isSignedIn) {
       fetchExpenses();
-      if (activeTab === "analytics") {
+      if (activeTab === "analytics" || activeTab === "categories") {
         fetchSummary();
       }
     }
@@ -144,15 +174,12 @@ export default function ExpensesPage() {
 
       if (response.ok) {
         fetchExpenses();
-        if (activeTab === "analytics") {
+        if (activeTab === "analytics" || activeTab === "categories") {
           fetchSummary();
         }
       } else {
-        console.error(
-          "Failed to delete expense:",
-          response.status,
-          response.statusText
-        );
+        const error = await response.text();
+        console.error("Failed to delete expense:", error);
         alert("Failed to delete expense. Please try again.");
       }
     } catch (error) {
@@ -165,22 +192,14 @@ export default function ExpensesPage() {
     setEditingExpense({
       ...expense,
       _id: expense._id,
-      amount: expense.amount.toString(),
+      amount: expense.amount.toString(), // Convert number to string for form
       expenseDate: new Date(expense.expenseDate),
     });
     setFormOpen(true);
   };
 
-  const handleFormSubmit = async (data: {
-    title: string;
-    description?: string;
-    amount: string;
-    currency: string;
-    category: ExpenseCategory;
-    expenseDate: Date;
-    receiptNumber?: string;
-    vendor?: string;
-  }) => {
+  // In your ExpensesPage component, fix the handleFormSubmit function:
+  const handleFormSubmit = async (formData: ExpenseFormData) => {
     try {
       const url = editingExpense
         ? `/api/expenses/${editingExpense._id}`
@@ -188,15 +207,18 @@ export default function ExpensesPage() {
 
       const method = editingExpense ? "PUT" : "POST";
 
-      // Transform form data for API
+      // Transform form data for API - convert string amount to number
       const transformedData = {
-        ...data,
-        amount: parseFloat(data.amount),
-        expenseDate: data.expenseDate.toISOString().split("T")[0],
+        ...formData,
+        amount: parseFloat(formData.amount) || 0, // Convert to number for API
+        expenseDate: formData.expenseDate.toISOString().split("T")[0],
       };
 
       const response = await authenticatedFetch(url, {
         method,
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(transformedData),
       });
 
@@ -204,15 +226,12 @@ export default function ExpensesPage() {
         setFormOpen(false);
         setEditingExpense(null);
         fetchExpenses();
-        if (activeTab === "analytics") {
+        if (activeTab === "analytics" || activeTab === "categories") {
           fetchSummary();
         }
       } else {
-        console.error(
-          "Failed to save expense:",
-          response.status,
-          response.statusText
-        );
+        const error = await response.text();
+        console.error("Failed to save expense:", error);
         alert("Failed to save expense. Please try again.");
       }
     } catch (error) {
@@ -237,7 +256,7 @@ export default function ExpensesPage() {
       expense.category,
       expense.amount,
       expense.currency,
-      new Date(expense.expenseDate).toLocaleDateString(),
+      formatDate(expense.expenseDate),
       expense.vendor || "",
       expense.receiptNumber || "",
       expense.description || "",
@@ -256,6 +275,45 @@ export default function ExpensesPage() {
     a.click();
   };
 
+  const handleFormCancel = () => {
+    setFormOpen(false);
+    setEditingExpense(null);
+  };
+
+  // Helper function to format dates (matching ExpenseTable's formatDate)
+  const formatDate = (dateValue: Date | string | null | undefined): string => {
+    if (!dateValue) return "-";
+    let date: Date;
+    if (dateValue instanceof Date) {
+      date = dateValue;
+    } else if (typeof dateValue === "string") {
+      date = new Date(dateValue);
+      if (isNaN(date.getTime())) {
+        const parts = dateValue.split(/[-\/]/);
+        if (parts.length === 3) {
+          const year = parseInt(parts[0]);
+          const month = parseInt(parts[1]) - 1;
+          const day = parseInt(parts[2]);
+          date = new Date(year, month, day);
+        }
+      }
+    } else {
+      return "Invalid Date";
+    }
+    if (isNaN(date.getTime())) return "Invalid Date";
+    return date.toLocaleDateString();
+  };
+
+  if (!isSignedIn) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="text-center py-8">
+          <p className="text-lg">Redirecting to sign in...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -266,6 +324,10 @@ export default function ExpensesPage() {
           <p className="text-gray-500">Track and manage your hotel expenses</p>
         </div>
         <div className="flex items-center space-x-4">
+          <Button onClick={exportToCSV} variant="outline" className="gap-2">
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
           <Dialog open={formOpen} onOpenChange={setFormOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
@@ -283,6 +345,7 @@ export default function ExpensesPage() {
                 initialData={editingExpense || undefined}
                 onSubmit={handleFormSubmit}
                 isSubmitting={false}
+                onCancel={handleFormCancel}
               />
             </DialogContent>
           </Dialog>
@@ -300,9 +363,9 @@ export default function ExpensesPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.open("/api/debug/auth", "_blank")}
+            onClick={() => router.push("/sign-in")}
           >
-            Debug Info
+            Sign In
           </Button>
         </div>
       )}
@@ -322,11 +385,12 @@ export default function ExpensesPage() {
           {isLoading ? (
             <div className="text-center py-8">Loading expenses...</div>
           ) : (
-            <ExpenseTable
+            <MemoizedExpenseTable
               expenses={expenses}
               pagination={pagination}
               onPageChange={handlePageChange}
               onFilterChange={handleFilterChange}
+              filters={filters}
               onDelete={handleDelete}
               onEdit={handleEdit}
             />
@@ -334,50 +398,49 @@ export default function ExpensesPage() {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">
-          {summaryData ? (
+          {isLoading ? (
+            <div className="text-center py-8">Loading analytics...</div>
+          ) : summaryData ? (
             <ExpenseSummary data={summaryData} />
           ) : (
-            <div className="text-center py-8">Loading analytics...</div>
+            <div className="text-center py-8">No analytics data available</div>
           )}
         </TabsContent>
 
         <TabsContent value="categories" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {EXPENSE_CATEGORIES.map((category) => (
-              <div
-                key={category}
-                className="border rounded-lg p-6 hover:shadow-md transition-shadow"
-              >
-                <h3 className="font-semibold text-lg mb-2">{category}</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Total Expenses:</span>
-                    <span className="font-medium">
-                      {summaryData?.byCategory.find(
-                        (c: any) => c.category === category
-                      )?.count || 0}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Total Amount:</span>
-                    <span className="font-medium">
-                      {summaryData?.byCategory.find(
-                        (c: any) => c.category === category
-                      )?.total
-                        ? new Intl.NumberFormat("en-US", {
-                            style: "currency",
-                            currency: "USD",
-                          }).format(
-                            summaryData.byCategory.find(
-                              (c: any) => c.category === category
-                            ).total
-                          )
-                        : "$0"}
-                    </span>
+            {EXPENSE_CATEGORIES.map((category) => {
+              const categoryData = summaryData?.byCategory?.find(
+                (c: any) => c.category === category
+              );
+              return (
+                <div
+                  key={category}
+                  className="border rounded-lg p-6 hover:shadow-md transition-shadow"
+                >
+                  <h3 className="font-semibold text-lg mb-2">{category}</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Total Expenses:</span>
+                      <span className="font-medium">
+                        {categoryData?.count || 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Total Amount:</span>
+                      <span className="font-medium">
+                        {categoryData
+                          ? new Intl.NumberFormat("en-US", {
+                              style: "currency",
+                              currency: "USD",
+                            }).format(categoryData.total || 0)
+                          : "$0"}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </TabsContent>
       </Tabs>
