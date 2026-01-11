@@ -3,7 +3,7 @@
 
 import { useState, useEffect, Suspense, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   useReactTable,
@@ -221,6 +221,7 @@ function AdminBookingsContent() {
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   // Use the custom search filters hook
   const {
@@ -1179,7 +1180,7 @@ function AdminBookingsContent() {
               guestName: guestName,
               bookingId: bookingId,
             });
-            window.location.href = `/admin/sales?${params.toString()}`;
+            router.push(`/admin/sales?${params.toString()}`);
           }}
           preSelectedGuest={preSelectedGuest}
         />

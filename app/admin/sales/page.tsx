@@ -188,7 +188,7 @@ function SalesContent() {
     from: format(startOfToday(), "yyyy-MM-dd"),
     to: format(new Date(), "yyyy-MM-dd"),
   });
-  const [datePeriod, setDatePeriod] = useState<DatePeriod>("today");
+  const [datePeriod, setDatePeriod] = useState<DatePeriod>("lifetime");
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
   // React Query for sales data
@@ -230,9 +230,12 @@ function SalesContent() {
   // Handle auto-selection when data loads
   useEffect(() => {
     if (autoSelect && guestName && salesData?.data) {
+      // Normalize the guest name for comparison
+      const normalizedGuestName = guestName.trim().toLowerCase();
+
       // Find the customer record that matches the guest name
       const customerRecord = salesData.data.find(
-        (record) => record.customerName === guestName
+        (record) => record.normalizedName === normalizedGuestName
       );
 
       if (customerRecord) {
@@ -244,8 +247,9 @@ function SalesContent() {
           // Find the specific booking record
           const bookingRecord = salesData.data.find(
             (record) =>
-              (record.bookingId === bookingId || record.id === bookingId) &&
-              record.customerName === guestName
+              (record.bookingId === bookingId ||
+                record.id.startsWith(bookingId)) &&
+              record.normalizedName === normalizedGuestName
           );
 
           if (bookingRecord && parseFloat(bookingRecord.outstanding) > 0) {

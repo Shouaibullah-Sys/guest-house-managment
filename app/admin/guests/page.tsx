@@ -445,6 +445,7 @@ function AdminGuestsContent() {
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
         onGuestCreated={handleGuestCreated}
+        navigateToBookingAfterCreate={true}
       />
 
       {selectedGuest && (
