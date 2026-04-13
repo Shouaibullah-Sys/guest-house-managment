@@ -1,11 +1,11 @@
 // app/api/rooms/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import mongoose from "mongoose";
 import { Room } from "@/models/Room";
 import { RoomType } from "@/models/RoomType";
 import { Booking } from "@/models/Booking";
 import dbConnect from "@/lib/db";
+import { getCurrentUser } from "@/lib/server/auth";
 import {
   searchRoomQuerySchema,
   createRoomSchema,
@@ -85,8 +85,8 @@ function transformRoomTypeToResponse(roomType: any) {
 // GET /api/rooms - List rooms with search and filtering
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
+    const user = await getCurrentUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -202,8 +202,8 @@ export async function GET(request: NextRequest) {
 // POST /api/rooms - Create a new room
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
+    const user = await getCurrentUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -299,8 +299,8 @@ export async function POST(request: NextRequest) {
 // PUT /api/rooms - Update a room
 export async function PUT(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
+    const user = await getCurrentUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -427,8 +427,8 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/rooms - Delete a room
 export async function DELETE(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
+    const user = await getCurrentUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

@@ -175,14 +175,15 @@ export async function setUserRole(
   try {
     await dbConnect();
 
-    const isApproved = approved !== undefined ? approved : role === "guest";
+    const isApproved =
+      approved !== undefined ? approved : role === "guest" || role === "admin";
 
     // Update Clerk metadata
     await (
       await clerkClient()
     ).users.updateUser(userId, {
       publicMetadata: {
-        role,
+        role: role as "guest" | "staff" | "admin",
         approved: isApproved,
       },
     });
@@ -227,7 +228,7 @@ export async function approveUser(
       await clerkClient()
     ).users.updateUser(userId, {
       publicMetadata: {
-        ...{ role },
+        role: role as "guest" | "staff" | "admin",
         approved: true,
       },
     });

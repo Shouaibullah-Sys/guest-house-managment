@@ -25,6 +25,12 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@clerk/nextjs": [
+        "./clerk-compat/nextjs"
+      ],
+      "@clerk/nextjs/server": [
+        "./clerk-compat/server"
       ]
     }
   },

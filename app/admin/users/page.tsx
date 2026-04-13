@@ -275,6 +275,14 @@ export default function UserManagementPage() {
     return "Active";
   };
 
+  const isPendingUser = (user: User) => {
+    return (
+      !user.banned &&
+      user.isActive &&
+      user.publicMetadata.approved !== true
+    );
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <main className="container mx-auto flex-grow p-4">
@@ -473,17 +481,14 @@ export default function UserManagementPage() {
                                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                   <DropdownMenuSeparator />
 
-                                  {!user.publicMetadata.approved &&
-                                    !user.banned &&
-                                    user.isActive && (
-                                      <DropdownMenuItem
-                                        onClick={() =>
-                                          handleApproveUser(user.id)
-                                        }
-                                      >
-                                        Approve User
-                                      </DropdownMenuItem>
-                                    )}
+                                  <DropdownMenuItem
+                                    onClick={() => handleApproveUser(user.id)}
+                                    disabled={!isPendingUser(user)}
+                                  >
+                                    {isPendingUser(user)
+                                      ? "Approve User"
+                                      : "Already Approved"}
+                                  </DropdownMenuItem>
 
                                   <DropdownMenuItem
                                     onClick={() =>

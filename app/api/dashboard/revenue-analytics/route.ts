@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/db";
 import { Booking } from "@/models/Booking";
 import { Room } from "@/models/Room";
+import { getCurrentUser } from "@/lib/server/auth";
 import {
   startOfMonth,
   endOfMonth,
@@ -26,8 +26,8 @@ function convertToNumber(value: any): number {
 // Revenue analytics API endpoint
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
+    const user = await getCurrentUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

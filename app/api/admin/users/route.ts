@@ -1,9 +1,9 @@
 // app/api/admin/users/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { User } from "@/models";
 import dbConnect from "@/lib/db";
+import { getCurrentUser } from "@/lib/server/auth";
 
 // Types for better type safety
 type ApiResponse<T> = {
@@ -17,6 +17,41 @@ type ApiResponse<T> = {
   success?: boolean;
   message?: string;
   error?: string;
+};
+
+type UserListItem = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  emailAddresses: Array<{
+    id: string;
+    emailAddress: string;
+  }>;
+  primaryEmailAddressId: string;
+  imageUrl: string | null;
+  publicMetadata: {
+    role: "guest" | "staff" | "admin";
+    approved: boolean;
+  };
+  banned: boolean;
+  createdAt: number;
+  updatedAt: number;
+  lastSignInAt: number | null;
+  dbData: {
+    phone: string | null;
+    dateOfBirth?: Date;
+    nationality?: string;
+    loyaltyPoints: number;
+    totalStays: number;
+    totalSpent: number;
+    staffProfile?: string;
+    notes?: string;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  isActive: boolean;
 };
 
 // Helper function for consistent error responses
@@ -55,118 +90,114 @@ function createSuccessResponse<T>(data: T, options?: {
 
 export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<any>>> {
   try {
-    // Connect to database
     await dbConnect();
 
-    // Check if user is authenticated and is an admin
-    const { userId } = await auth();
-    if (!userId) {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
       return createErrorResponse("Unauthorized", 401);
     }
 
-    // Check if current user is admin
-    const currentUser = await User.findOne({ _id: userId });
-    if (!currentUser || currentUser.role !== "admin") {
+    if (currentUser.role !== "admin") {
       return createErrorResponse("Forbidden", 403);
     }
 
-    // Use Clerk's Admin API to get all users
-    const { clerkClient } = await import("@clerk/nextjs/server");
-    const client = await clerkClient();
-
-    // Get query parameters with validation
     const { searchParams } = new URL(req.url);
-    const search = searchParams.get("search") || "";
-    const role = searchParams.get("role") || "";
+    const search = searchParams.get("search")?.trim() || "";
+    const role = searchParams.get("role")?.trim() || "";
     const approved = searchParams.get("approved");
+    const active = searchParams.get("active");
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20")));
     const offset = (page - 1) * limit;
 
-    // Get users from Clerk with pagination
-    const clerkUsers = await client.users.getUserList({
-      limit: Math.min(limit, 100), // Clerk max is 500, but we'll use 100 for performance
-      offset: offset,
-      query: search || undefined, // Clerk supports search
-    });
+    const filter: Record<string, any> = {};
 
-    // Get all user IDs from Clerk response
-    const clerkUserIds = clerkUsers.data.map((user) => user.id);
-
-    // Get users from MongoDB with matching IDs
-    const mongoUsers = await User.find({
-      _id: { $in: clerkUserIds },
-    }).lean();
-
-    // Create a map of MongoDB users for quick lookup
-    const mongoUserMap = new Map();
-    mongoUsers.forEach((user) => {
-      mongoUserMap.set(user._id, user);
-    });
-
-    // Transform the data to combine Clerk and MongoDB data
-    const transformedUsers = clerkUsers.data.map((user) => {
-      const mongoUser = mongoUserMap.get(user.id);
-
-      return {
-        id: user.id,
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
-        fullName:
-          user.fullName ||
-          `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
-          "User",
-        emailAddresses: user.emailAddresses.map((email) => ({
-          id: email.id,
-          emailAddress: email.emailAddress,
-        })),
-        primaryEmailAddressId: user.primaryEmailAddressId,
-        imageUrl: user.imageUrl,
-        publicMetadata: user.publicMetadata,
-        banned: user.banned,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-        lastSignInAt: user.lastSignInAt,
-        // MongoDB data if exists
-        dbData: mongoUser
-          ? {
-              phone: mongoUser.phone,
-              dateOfBirth: mongoUser.dateOfBirth,
-              nationality: mongoUser.nationality,
-              loyaltyPoints: mongoUser.loyaltyPoints,
-              totalStays: mongoUser.totalStays,
-              totalSpent: mongoUser.totalSpent,
-              staffProfile: mongoUser.staffProfile,
-              notes: mongoUser.notes,
-              isActive: mongoUser.isActive,
-              createdAt: mongoUser.createdAt,
-              updatedAt: mongoUser.updatedAt,
-            }
-          : null,
-      };
-    });
-
-    // Filter by role and approval status (if provided)
-    let filteredUsers = transformedUsers;
+    if (search) {
+      const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const searchRegex = new RegExp(safeSearch, "i");
+      filter.$or = [
+        { _id: searchRegex },
+        { name: searchRegex },
+        { email: searchRegex },
+      ];
+    }
 
     if (role) {
-      filteredUsers = filteredUsers.filter(
-        (user) => (user.publicMetadata as any)?.role === role
-      );
+      filter.role = role;
     }
 
     if (approved !== null) {
-      filteredUsers = filteredUsers.filter(
-        (user) =>
-          (user.publicMetadata as any)?.approved === (approved === "true")
-      );
+      filter.approved = approved === "true";
     }
 
-    // Get total count from Clerk (we need to make a separate call for this)
-    const totalCount = clerkUsers.totalCount;
+    if (active !== null) {
+      filter.isActive = active === "true";
+    }
+
+    const totalCount = await User.countDocuments(filter);
+    const users = await User.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(offset)
+      .limit(limit)
+      .lean();
+
+    const transformedUsers: UserListItem[] = users.map((user: any) => {
+      const fullName = user.name?.trim() || "User";
+      const [firstName = "", ...restName] = fullName.split(" ");
+      const lastName = restName.join(" ");
+      const createdAt =
+        user.createdAt instanceof Date
+          ? user.createdAt.getTime()
+          : Date.now();
+      const updatedAt =
+        user.updatedAt instanceof Date
+          ? user.updatedAt.getTime()
+          : createdAt;
+      const totalSpent =
+        typeof user.totalSpent?.toString === "function"
+          ? Number(user.totalSpent.toString()) || 0
+          : Number(user.totalSpent) || 0;
+
+      return {
+        id: user._id,
+        firstName,
+        lastName,
+        fullName,
+        emailAddresses: [
+          {
+            id: `email_${user._id}`,
+            emailAddress: user.email || "",
+          },
+        ],
+        primaryEmailAddressId: `email_${user._id}`,
+        imageUrl: user.image || null,
+        publicMetadata: {
+          role: (user.role || "guest") as "guest" | "staff" | "admin",
+          approved: Boolean(user.approved),
+        },
+        banned: !Boolean(user.isActive),
+        createdAt,
+        updatedAt,
+        lastSignInAt: user.lastLoginAt ? new Date(user.lastLoginAt).getTime() : null,
+        dbData: {
+          phone: user.phone || null,
+          dateOfBirth: user.dateOfBirth,
+          nationality: user.nationality,
+          loyaltyPoints: Number(user.loyaltyPoints || 0),
+          totalStays: Number(user.totalStays || 0),
+          totalSpent,
+          staffProfile: user.staffProfile?.toString?.(),
+          notes: user.notes,
+          isActive: Boolean(user.isActive),
+          createdAt: user.createdAt || new Date(),
+          updatedAt: user.updatedAt || new Date(),
+        },
+        isActive: Boolean(user.isActive),
+      };
+    });
 
     return createSuccessResponse({
-      users: filteredUsers,
+      users: transformedUsers,
     }, {
       pagination: {
         page,
@@ -184,18 +215,14 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<an
 // DELETE endpoint for user deletion
 export async function DELETE(req: NextRequest): Promise<NextResponse<ApiResponse<{ success: boolean; message: string }>>> {
   try {
-    // Connect to database
     await dbConnect();
 
-    // Check if user is authenticated and is an admin
-    const { userId } = await auth();
-    if (!userId) {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
       return createErrorResponse("Unauthorized", 401);
     }
 
-    // Check if current user is admin
-    const currentUser = await User.findOne({ _id: userId });
-    if (!currentUser || currentUser.role !== "admin") {
+    if (currentUser.role !== "admin") {
       return createErrorResponse("Forbidden", 403);
     }
 
@@ -206,14 +233,10 @@ export async function DELETE(req: NextRequest): Promise<NextResponse<ApiResponse
       return createErrorResponse("User ID is required", 400);
     }
 
-    // Use Clerk's Admin API to delete user
-    const { clerkClient } = await import("@clerk/nextjs/server");
-    const client = await clerkClient();
+    if (userIdToDelete === currentUser._id?.toString()) {
+      return createErrorResponse("You cannot delete your own account", 400);
+    }
 
-    // Delete from Clerk
-    await client.users.deleteUser(userIdToDelete);
-
-    // Mark as inactive in MongoDB (soft delete)
     await User.findOneAndUpdate(
       { _id: userIdToDelete },
       {

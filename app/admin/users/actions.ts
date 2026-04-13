@@ -14,7 +14,9 @@ export async function setRole(formData: FormData): Promise<void> {
     | "admin"
     | "laboratory"
     | "patient";
-  const approved = role === "guest" || role === "patient" ? true : false; // Guests and patients auto-approved
+  // Admin should be approved immediately; keep staff/laboratory pending unless approved explicitly.
+  const approved =
+    role === "guest" || role === "patient" || role === "admin";
 
   try {
     // Update Clerk metadata

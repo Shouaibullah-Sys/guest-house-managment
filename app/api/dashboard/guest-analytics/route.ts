@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import dbConnect from "@/lib/db";
 import { User } from "@/models/User";
 import { Booking } from "@/models/Booking";
 import { IBooking } from "@/models/types";
+import { getCurrentUser } from "@/lib/server/auth";
 
 // Guest analytics API endpoint
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
+    const user = await getCurrentUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/auth-store";
 import {
   LayoutDashboard,
   Calendar,
@@ -40,12 +41,20 @@ const navigation: NavigationItem[] = [
 export default function AdminNavigator() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuthStore();
 
   const isCurrentPath = (href: string) => {
     if (href === "/admin") {
       return pathname === "/admin";
     }
     return pathname.startsWith(href);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    router.push("/sign-in");
+    router.refresh();
   };
 
   return (
@@ -198,21 +207,33 @@ export default function AdminNavigator() {
               <div className="relative flex items-center space-x-3">
                 <div className="flex items-center space-x-2">
                   <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
-                    <span className="text-sm font-medium text-white">م</span>
+                    <span className="text-sm font-medium text-white">
+                      {(user?.name?.[0] || "م").toUpperCase()}
+                    </span>
                   </div>
                   <div className="hidden md:block">
                     <p className="text-sm font-medium text-gray-900">
-                      کاربر مدیر
+                      {user?.name || "کاربر مدیر"}
                     </p>
-                    <p className="text-xs text-gray-500">مدیر کل</p>
+                    <p className="text-xs text-gray-500">
+                      {user?.role === "admin"
+                        ? "مدیر کل"
+                        : user?.role === "staff"
+                        ? "کارمند"
+                        : "مهمان"}
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  <button className="text-gray-500 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition-colors group">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="text-gray-500 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition-colors group"
+                  >
                     <LogOut className="h-5 w-5 group-hover:scale-110 transition-transform" />
                     <span className="hidden md:block text-sm font-medium text-gray-700 group-hover:text-red-600">
-                      خروج
+                      خروجی
                     </span>
                   </button>
                 </div>

@@ -3,7 +3,6 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useAuth } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import {
@@ -144,7 +143,6 @@ const fetchSalesData = async ({
 function SalesContent() {
   const { theme, setTheme } = useTheme();
   const queryClient = useQueryClient();
-  const { getToken } = useAuth();
   const searchParams = useSearchParams();
 
   // Check for auto-select query parameters
@@ -154,29 +152,14 @@ function SalesContent() {
 
   // Authenticated fetch function
   const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
-    try {
-      const token = await getToken();
-
-      if (!token) {
-        throw new Error("No session token available");
-      }
-
-      const headers = {
+    return fetch(url, {
+      ...options,
+      credentials: "include",
+      headers: {
         ...options.headers,
-        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
-      };
-
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
-
-      return response;
-    } catch (error) {
-      console.error("Authenticated fetch error:", error);
-      throw error;
-    }
+      },
+    });
   };
 
   const [isMobile, setIsMobile] = useState(false);

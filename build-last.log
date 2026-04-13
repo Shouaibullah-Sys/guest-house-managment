@@ -1,0 +1,9 @@
+
+> dr-sebghat-clinic@0.1.0 build /home/shouaibullah/Desktop/guest-house-managment
+> next build --turbopack
+
+▲ Next.js 16.1.1 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+ ELIFECYCLE  Command failed with exit code 1.

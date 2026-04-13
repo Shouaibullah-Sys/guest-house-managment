@@ -33,8 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { useAuth } from "@clerk/nextjs";
-import { useAuthenticatedFetch } from "@/lib/auth-client";
+import { useAuthStore } from "@/store/auth-store";
 import { GuestInfoDialog } from "@/components/booking/guest-info-dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -67,9 +66,20 @@ interface GuestData {
 }
 
 export default function BookingSection() {
-  const { isSignedIn, userId } = useAuth();
-  const authenticatedFetch = useAuthenticatedFetch();
+  const { isAuthenticated: isSignedIn, user } = useAuthStore();
+  const userId = user?._id;
   const router = useRouter();
+
+  const authenticatedFetch = async (url: string, options?: RequestInit) => {
+    return fetch(url, {
+      ...options,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+    });
+  };
 
   const [bookingData, setBookingData] = useState({
     checkIn: "",

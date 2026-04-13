@@ -21,8 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@clerk/nextjs";
-import { useAuthenticatedFetch } from "@/lib/auth-client";
+import { useAuthStore } from "@/store/auth-store";
 import { GuestInfoDialog } from "./guest-info-dialog";
 import { toast } from "sonner";
 
@@ -54,8 +53,19 @@ interface GuestData {
 }
 
 export default function QuickBookingWidget() {
-  const { isSignedIn, userId } = useAuth();
-  const authenticatedFetch = useAuthenticatedFetch();
+  const { isAuthenticated: isSignedIn, user } = useAuthStore();
+  const userId = user?._id;
+
+  const authenticatedFetch = async (url: string, options?: RequestInit) => {
+    return fetch(url, {
+      ...options,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+    });
+  };
   const router = useRouter();
 
   const [isExpanded, setIsExpanded] = useState(false);

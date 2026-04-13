@@ -1,10 +1,10 @@
 // app/api/hero-section/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { HeroSection } from "@/models/HeroSection";
 import dbConnect from "@/lib/db";
 import { z } from "zod";
 import mongoose from "mongoose";
+import { requireAuth } from "@/lib/server/auth";
 
 // Transform HeroSection document to frontend format
 function transformHeroSectionToResponse(heroSection: any) {
@@ -30,10 +30,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    await requireAuth();
 
     // Await params before using its properties (Next.js 15 requirement)
     const { id: heroSectionId } = await params;
@@ -74,10 +71,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const currentUser = await requireAuth();
 
     // Await params before using its properties (Next.js 15 requirement)
     const { id: heroSectionId } = await params;
@@ -151,7 +145,7 @@ export async function PUT(
       heroSectionId,
       {
         ...updateData,
-        updatedBy: userId,
+        updatedBy: currentUser._id,
       },
       { new: true, runValidators: true }
     );
@@ -183,10 +177,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    await requireAuth();
 
     // Await params before using its properties (Next.js 15 requirement)
     const { id: heroSectionId } = await params;

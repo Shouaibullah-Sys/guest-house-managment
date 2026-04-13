@@ -37,7 +37,8 @@ export async function POST(req: NextRequest) {
     const clerkUser = await client.users.getUser(userIdToUpdate);
     const currentMetadata = clerkUser.publicMetadata as any;
 
-    const approved = role === "guest" ? true : false;
+    // Admin role should be active immediately; staff can stay pending for review.
+    const approved = role === "guest" || role === "admin";
 
     // Update Clerk metadata
     await client.users.updateUser(userIdToUpdate, {

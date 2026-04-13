@@ -131,7 +131,7 @@ export async function updateUserRole(
     ).users.updateUser(userId, {
       publicMetadata: {
         role,
-        approved: role === "guest" ? true : false, // Guests auto-approved, staff/admin need approval
+        approved: role === "guest" || role === "admin", // Admin and guests auto-approved; staff requires approval
       },
     });
 
@@ -141,7 +141,7 @@ export async function updateUserRole(
       {
         $set: {
           role,
-          approved: role === "guest",
+          approved: role === "guest" || role === "admin",
         },
       }
     );

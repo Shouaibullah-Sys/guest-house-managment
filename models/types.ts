@@ -52,6 +52,12 @@ export interface IUser extends Document {
   image?: string;
   role: Role;
   approved: boolean;
+  passwordHash?: string;
+  passwordSetAt?: Date;
+  lastLoginAt?: Date;
+  authProvider: "local" | "clerk";
+  resetTokenHash?: string;
+  resetTokenExpiresAt?: Date;
   phone?: string;
   smsNotifications: boolean;
   pushNotifications: boolean;

@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useEffect, Suspense, useCallback } from "react";
-import { useAuth } from "@clerk/nextjs";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -218,7 +217,6 @@ function useSearchFilters() {
 // Main component that handles all the logic
 function AdminBookingsContent() {
   const { theme, setTheme } = useTheme();
-  const { getToken } = useAuth();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -263,29 +261,14 @@ function AdminBookingsContent() {
 
   // Authenticated fetch function
   const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
-    try {
-      const token = await getToken();
-
-      if (!token) {
-        throw new Error("No session token available");
-      }
-
-      const headers = {
+    return fetch(url, {
+      ...options,
+      credentials: "include",
+      headers: {
         ...options.headers,
-        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
-      };
-
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
-
-      return response;
-    } catch (error) {
-      console.error("Authenticated fetch error:", error);
-      throw error;
-    }
+      },
+    });
   };
 
   // Handle search params with proper Suspense
@@ -296,19 +279,14 @@ function AdminBookingsContent() {
     if (autoOpen && guestId) {
       const handleAutoOpen = async () => {
         try {
-          const token = await getToken();
-          if (token) {
-            const response = await fetch(`/api/guests/${guestId}`, {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            });
+          const response = await fetch(`/api/guests/${guestId}`, {
+            credentials: "include",
+          });
 
-            if (response.ok) {
-              const guestData = await response.json();
-              setPreSelectedGuest(guestData.data);
-              setCreateDialogOpen(true);
-            }
+          if (response.ok) {
+            const guestData = await response.json();
+            setPreSelectedGuest(guestData.data);
+            setCreateDialogOpen(true);
           }
         } catch (error) {
           console.error("Error fetching guest for auto-open:", error);
@@ -317,7 +295,7 @@ function AdminBookingsContent() {
 
       handleAutoOpen();
     }
-  }, [searchParams, getToken]);
+  }, [searchParams]);
 
   // Fetch bookings function with minimum search length
   const fetchBookings = async (): Promise<BookingsResponse> => {
