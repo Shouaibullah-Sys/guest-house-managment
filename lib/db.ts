@@ -30,9 +30,37 @@ const MONGO_URI_ENV_KEYS = [
   "MONGO_URL",
   "DATABASE_URL",
 ] as const;
+const KNOWN_BAD_SRV_HOST_REWRITES: Record<string, string> = {
+  "cluster0.thh5nfs.mongodb.net": "cluster0.4nxwxr8.mongodb.net",
+};
 
 function isMongoUri(uri: string): boolean {
   return uri.startsWith("mongodb://") || uri.startsWith("mongodb+srv://");
+}
+
+function rewriteKnownSrvHostIfNeeded(uri: string): string | null {
+  const withoutProtocol = uri.replace(/^mongodb\+srv:\/\//i, "");
+  if (withoutProtocol === uri) {
+    return null;
+  }
+
+  const atIndex = withoutProtocol.lastIndexOf("@");
+  if (atIndex < 0) {
+    return null;
+  }
+
+  const authorityAndPath = withoutProtocol.slice(atIndex + 1);
+  const slashIndex = authorityAndPath.indexOf("/");
+  const host = slashIndex >= 0
+    ? authorityAndPath.slice(0, slashIndex)
+    : authorityAndPath;
+  const rewrittenHost = KNOWN_BAD_SRV_HOST_REWRITES[host];
+
+  if (!rewrittenHost) {
+    return null;
+  }
+
+  return uri.replace(host, rewrittenHost);
 }
 
 function getMongoUriCandidates(): EnvUriCandidate[] {
@@ -47,6 +75,12 @@ function getMongoUriCandidates(): EnvUriCandidate[] {
 
     seen.add(value);
     candidates.push({ key, uri: value });
+
+    const rewritten = rewriteKnownSrvHostIfNeeded(value);
+    if (rewritten && !seen.has(rewritten)) {
+      seen.add(rewritten);
+      candidates.push({ key: `${key}_HOST_REWRITE`, uri: rewritten });
+    }
   }
 
   return candidates;
