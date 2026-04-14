@@ -36,6 +36,43 @@ function isSrvLookupError(error: unknown): error is MongoLikeError {
   );
 }
 
+function getUriHostSummary(uri?: string): string | null {
+  if (!uri) return null;
+
+  const withoutProtocol = uri.replace(/^mongodb(?:\+srv)?:\/\//i, "");
+  const withoutCredentials = withoutProtocol.includes("@")
+    ? withoutProtocol.split("@")[1]
+    : withoutProtocol;
+  const hostSegment = withoutCredentials.split("/")[0];
+  const hosts = hostSegment
+    .split(",")
+    .map((host) => host.trim())
+    .filter(Boolean);
+
+  if (hosts.length === 0) return null;
+  if (hosts.length === 1) return hosts[0];
+
+  return `${hosts[0]} (+${hosts.length - 1} more)`;
+}
+
+function getUriMode(uri?: string): "srv" | "direct" | null {
+  if (!uri) return null;
+  if (uri.startsWith("mongodb+srv://")) return "srv";
+  if (uri.startsWith("mongodb://")) return "direct";
+  return null;
+}
+
+export function getMongoEnvSummary() {
+  return {
+    hasMongoUri: Boolean(MONGODB_URI),
+    mongoUriMode: getUriMode(MONGODB_URI),
+    mongoUriHost: getUriHostSummary(MONGODB_URI),
+    hasMongoUriDirect: Boolean(MONGODB_URI_DIRECT),
+    mongoUriDirectMode: getUriMode(MONGODB_URI_DIRECT),
+    mongoUriDirectHost: getUriHostSummary(MONGODB_URI_DIRECT),
+  };
+}
+
 /**
  * Global is used here to maintain a cached connection across hot reloads
  * in development. This prevents connections growing exponentially
