@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/server/auth";
 import { User } from "@/models/User";
 
 type CompatPublicMetadata = {
-  role?: "guest" | "staff" | "admin";
+  role?: "guest" | "staff" | "admin" | "laboratory" | "patient";
   approved?: boolean;
   [key: string]: unknown;
 };
