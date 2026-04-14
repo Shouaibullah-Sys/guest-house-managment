@@ -38,7 +38,7 @@ export async function findOrCreateUser(clerkUserId: string) {
     await user.save();
 
     // Update Clerk metadata if needed
-    if (!metadata.role || metadata.role === "") {
+    if (!metadata.role) {
       await client.users.updateUser(clerkUserId, {
         publicMetadata: {
           role: "guest",
