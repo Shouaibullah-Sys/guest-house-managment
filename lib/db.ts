@@ -4,11 +4,35 @@ import mongoose from "mongoose";
 // Import all models to ensure they are registered with Mongoose
 import "@/models";
 
-const MONGODB_URI = process.env.MONGODB_URI;
+type MongoLikeError = Error & {
+  code?: string;
+  syscall?: string;
+  hostname?: string;
+};
 
-if (!MONGODB_URI) {
-  throw new Error(
-    "Please define the MONGODB_URI environment variable inside .env.local"
+function normalizeEnvUri(value?: string): string | undefined {
+  if (!value) return undefined;
+
+  const trimmed = value.trim();
+  const withoutQuotes = trimmed.replace(/^['"]|['"]$/g, "").trim();
+
+  return withoutQuotes || undefined;
+}
+
+const MONGODB_URI = normalizeEnvUri(process.env.MONGODB_URI);
+const MONGODB_URI_DIRECT = normalizeEnvUri(process.env.MONGODB_URI_DIRECT);
+
+if (!MONGODB_URI && !MONGODB_URI_DIRECT) {
+  throw new Error("Please define MONGODB_URI or MONGODB_URI_DIRECT");
+}
+
+function isSrvLookupError(error: unknown): error is MongoLikeError {
+  if (!(error instanceof Error)) return false;
+  const mongoError = error as MongoLikeError;
+
+  return (
+    mongoError.code === "ENOTFOUND" &&
+    mongoError.syscall?.toLowerCase() === "querysrv"
   );
 }
 
@@ -46,10 +70,33 @@ async function dbConnect(): Promise<typeof mongoose> {
       family: 4, // Use IPv4, skip trying IPv6
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
-      console.log("MongoDB connected successfully");
-      return mongoose;
-    });
+    cached.promise = (async () => {
+      try {
+        const uriToUse = MONGODB_URI || MONGODB_URI_DIRECT;
+        if (!uriToUse) {
+          throw new Error("MongoDB URI is not configured");
+        }
+
+        const connection = await mongoose.connect(uriToUse, opts);
+        console.log("MongoDB connected successfully");
+        return connection;
+      } catch (error) {
+        // Optional fallback for platforms/environments where SRV DNS lookup fails.
+        if (MONGODB_URI_DIRECT && MONGODB_URI && isSrvLookupError(error)) {
+          console.warn(
+            "Primary MongoDB SRV URI failed DNS lookup; retrying with MONGODB_URI_DIRECT"
+          );
+          const fallbackConnection = await mongoose.connect(
+            MONGODB_URI_DIRECT,
+            opts
+          );
+          console.log("MongoDB connected successfully (direct URI fallback)");
+          return fallbackConnection;
+        }
+
+        throw error;
+      }
+    })();
   }
 
   try {
