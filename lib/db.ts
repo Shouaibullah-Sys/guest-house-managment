@@ -9,6 +9,10 @@ type MongoLikeError = Error & {
   syscall?: string;
   hostname?: string;
 };
+type EnvUriCandidate = {
+  key: string;
+  uri: string;
+};
 
 function normalizeEnvUri(value?: string): string | undefined {
   if (!value) return undefined;
@@ -19,20 +23,40 @@ function normalizeEnvUri(value?: string): string | undefined {
   return withoutQuotes || undefined;
 }
 
-const MONGODB_URI = normalizeEnvUri(process.env.MONGODB_URI);
-const MONGODB_URI_DIRECT = normalizeEnvUri(process.env.MONGODB_URI_DIRECT);
+const MONGO_URI_ENV_KEYS = [
+  "MONGODB_URI_DIRECT",
+  "MONGODB_URI",
+  "MONGO_URI",
+  "MONGO_URL",
+  "DATABASE_URL",
+] as const;
 
-if (!MONGODB_URI && !MONGODB_URI_DIRECT) {
-  throw new Error("Please define MONGODB_URI or MONGODB_URI_DIRECT");
+function isMongoUri(uri: string): boolean {
+  return uri.startsWith("mongodb://") || uri.startsWith("mongodb+srv://");
 }
 
-function isSrvLookupError(error: unknown): error is MongoLikeError {
-  if (!(error instanceof Error)) return false;
-  const mongoError = error as MongoLikeError;
+function getMongoUriCandidates(): EnvUriCandidate[] {
+  const seen = new Set<string>();
+  const candidates: EnvUriCandidate[] = [];
 
-  return (
-    mongoError.code === "ENOTFOUND" &&
-    mongoError.syscall?.toLowerCase() === "querysrv"
+  for (const key of MONGO_URI_ENV_KEYS) {
+    const value = normalizeEnvUri(process.env[key]);
+    if (!value || !isMongoUri(value) || seen.has(value)) {
+      continue;
+    }
+
+    seen.add(value);
+    candidates.push({ key, uri: value });
+  }
+
+  return candidates;
+}
+
+const MONGO_URI_CANDIDATES = getMongoUriCandidates();
+
+if (MONGO_URI_CANDIDATES.length === 0) {
+  throw new Error(
+    "Please define a valid MongoDB connection string in one of: MONGODB_URI_DIRECT, MONGODB_URI, MONGO_URI, MONGO_URL, DATABASE_URL"
   );
 }
 
@@ -64,12 +88,12 @@ function getUriMode(uri?: string): "srv" | "direct" | null {
 
 export function getMongoEnvSummary() {
   return {
-    hasMongoUri: Boolean(MONGODB_URI),
-    mongoUriMode: getUriMode(MONGODB_URI),
-    mongoUriHost: getUriHostSummary(MONGODB_URI),
-    hasMongoUriDirect: Boolean(MONGODB_URI_DIRECT),
-    mongoUriDirectMode: getUriMode(MONGODB_URI_DIRECT),
-    mongoUriDirectHost: getUriHostSummary(MONGODB_URI_DIRECT),
+    candidateCount: MONGO_URI_CANDIDATES.length,
+    candidates: MONGO_URI_CANDIDATES.map((candidate) => ({
+      key: candidate.key,
+      mode: getUriMode(candidate.uri),
+      host: getUriHostSummary(candidate.uri),
+    })),
   };
 }
 
@@ -108,31 +132,31 @@ async function dbConnect(): Promise<typeof mongoose> {
     };
 
     cached.promise = (async () => {
-      try {
-        const uriToUse = MONGODB_URI || MONGODB_URI_DIRECT;
-        if (!uriToUse) {
-          throw new Error("MongoDB URI is not configured");
-        }
+      let lastError: unknown = null;
 
-        const connection = await mongoose.connect(uriToUse, opts);
-        console.log("MongoDB connected successfully");
-        return connection;
-      } catch (error) {
-        // Optional fallback for platforms/environments where SRV DNS lookup fails.
-        if (MONGODB_URI_DIRECT && MONGODB_URI && isSrvLookupError(error)) {
+      for (const candidate of MONGO_URI_CANDIDATES) {
+        try {
+          const connection = await mongoose.connect(candidate.uri, opts);
+          console.log(
+            `MongoDB connected successfully using ${candidate.key} (${getUriMode(
+              candidate.uri
+            ) ?? "unknown"})`
+          );
+          return connection;
+        } catch (error) {
+          lastError = error;
+          const mongoError = error as MongoLikeError;
           console.warn(
-            "Primary MongoDB SRV URI failed DNS lookup; retrying with MONGODB_URI_DIRECT"
+            `MongoDB connection failed using ${candidate.key} (${getUriHostSummary(
+              candidate.uri
+            ) ?? "unknown-host"})${mongoError.code ? ` [${mongoError.code}]` : ""}`
           );
-          const fallbackConnection = await mongoose.connect(
-            MONGODB_URI_DIRECT,
-            opts
-          );
-          console.log("MongoDB connected successfully (direct URI fallback)");
-          return fallbackConnection;
         }
-
-        throw error;
       }
+
+      throw (
+        lastError || new Error("MongoDB connection failed for all URI candidates")
+      );
     })();
   }
 
